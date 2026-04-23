@@ -16,8 +16,16 @@ const taskSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     status: {
       type: String,
-      enum: ["todo", "in_progress", "review", "done"],
-      default: "todo",
+      enum: [
+        "todo",
+        "in_progress",
+        "review",
+        "done",
+        "not_started",
+        "working_on_it",
+        "stuck",
+      ],
+      default: "not_started",
     },
     priority: {
       type: String,
@@ -32,23 +40,10 @@ const taskSchema = new mongoose.Schema(
     assigned_to_name: { type: String, default: "" },
     due_date: { type: Date },
     completed_at: { type: Date },
-    position: { type: Number, default: 0 }, // for drag-drop ordering
+    position: { type: Number, default: 0 },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-    },
-    status: {
-      type: String,
-      enum: [
-        "todo",
-        "in_progress",
-        "review",
-        "done",
-        "not_started",
-        "working_on_it",
-        "stuck",
-      ],
-      default: "not_started",
     },
   },
   { timestamps: true },

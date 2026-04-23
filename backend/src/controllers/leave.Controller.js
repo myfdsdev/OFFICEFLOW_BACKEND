@@ -302,12 +302,41 @@ export const updateLeave = asyncHandler(async (req, res) => {
       ]
     : ["leave_type", "start_date", "end_date", "reason"];
 
+  // Apply allowed field updates
+  allowedFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      leave[field] = req.body[field];
+    }
+  });
+
   // Recalc days if dates changed
   if (req.body.start_date || req.body.end_date) {
     leave.total_days = calculateDays(leave.start_date, leave.end_date);
   }
 
   await leave.save();
+
+  // If admin approved/rejected, create notification
+  const isAdmin = req.user.role === "admin";
+  if (isAdmin && req.body.status === "approved") {
+    await (await import('../models/Notification.js')).default.create({
+      user_email: leave.employee_email,
+      title: 'Leave Approved',
+      message: `Your ${leave.leave_type} leave has been approved.`,
+      type: 'leave_approved',
+      related_id: leave._id.toString(),
+    });
+  }
+  if (isAdmin && req.body.status === "rejected") {
+    await (await import('../models/Notification.js')).default.create({
+      user_email: leave.employee_email,
+      title: 'Leave Rejected',
+      message: `Your ${leave.leave_type} leave was rejected.`,
+      type: 'leave_rejected',
+      related_id: leave._id.toString(),
+    });
+  }
+
   res.json(leave);
 });
 

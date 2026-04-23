@@ -4,6 +4,12 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   logLevel: 'error',
+  resolve: {
+    alias: {
+      // This tells Vite that @ starts at the 'src' folder
+      "@": path.resolve(client, "./src"),
+    },
+  },
   plugins: [
     react(),
    VitePWA({ 

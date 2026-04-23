@@ -1,19 +1,23 @@
-import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+ import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vite.dev/config/
 export default defineConfig({
-  logLevel: 'error', // Suppress warnings, only show errors
+  logLevel: 'error',
   plugins: [
-    base44({
-      // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
-      // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
-      legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
-      hmrNotifier: true,
-      navigationNotifier: true,
-      visualEditAgent: true
-    }),
     react(),
+   VitePWA({ 
+     manifest: {
+      name: 'AttendEase',
+       short_name: 'AttendEase',
+       start_url: '.',
+       display: 'standalone',
+       background_color: '#ffffff',
+       theme_color: '#3B82F6',
+       icons: [
+        // Add your app icons here if needed
+       ]
+     }
+   })
   ]
 });

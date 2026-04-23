@@ -57,10 +57,27 @@ const httpServer = createServer(app); // for socket.io
 // MIDDLEWARE
 // ==========================================
 app.use(helmet());
+const allowedOrigins = [
+  process.env.FRONTEND_URL,          // https://officeflow-client.onrender.com
+  'http://localhost:5173',           // Local Vite
+  'http://localhost:3000'            // Local React
+].filter(Boolean); // This removes undefined values if FRONTEND_URL isn't set
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

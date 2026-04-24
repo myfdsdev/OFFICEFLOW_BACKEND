@@ -170,6 +170,13 @@ const createEntity = (entityName) => {
 // ========== AUTH ==========
 const auth = {
   me: async () => {
+    // Skip API call if no token — user is not logged in
+    const token = getToken();
+    if (!token) {
+      const err = new Error('Not authenticated');
+      err.status = 401;
+      throw err;
+    }
     const res = await api.get('/auth/me');
     return normalizeItem(res.data);
   },

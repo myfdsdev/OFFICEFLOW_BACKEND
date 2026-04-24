@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,44 +33,35 @@ export default function AdminDashboard() {
   const today = format(new Date(), "yyyy-MM-dd");
 
   useEffect(() => {
-    base44.auth.me().then(setUser);
+    base44.auth.me().then(setUser).catch(() => setUser(null));
   }, []);
 
-  const { data: employees = [], isLoading: loadingEmployees } = useQuery({
+  const { data: employees = [] } = useQuery({
     queryKey: ["employees"],
     queryFn: () => base44.entities.User.list(),
+    enabled: !!user,
   });
 
-  // Subscribe to real-time user updates
-  useEffect(() => {
-    const unsubscribe = base44.entities.User.subscribe((event) => {
-      if (event.type === "update") {
-        queryClient.invalidateQueries({ queryKey: ["employees"] });
-      }
-    });
-
-    return unsubscribe;
-  }, [queryClient]);
-
-  const { data: allAttendance = [], isLoading: loadingAttendance } = useQuery({
+  const { data: allAttendance = [] } = useQuery({
     queryKey: ["allAttendance", dateRange],
     queryFn: () =>
       base44.entities.Attendance.filter(
-        {
-          date: { $gte: dateRange.start, $lte: dateRange.end },
-        },
-        "-date",
+        { date: { $gte: dateRange.start, $lte: dateRange.end } },
+        "-date"
       ),
+    enabled: !!user,
   });
 
   const { data: todayAttendance = [] } = useQuery({
     queryKey: ["todayAttendance"],
     queryFn: () => base44.entities.Attendance.filter({ date: today }),
+    enabled: !!user,
   });
 
-  const { data: leaveRequests = [], isLoading: loadingLeaves } = useQuery({
+  const { data: leaveRequests = [] } = useQuery({
     queryKey: ["leaveRequests"],
-    queryFn: () => base44.entities.LeaveRequest.list("-created_date"),
+    queryFn: () => base44.entities.LeaveRequest.list("-createdAt"),
+    enabled: !!user,
   });
 
   const editAttendanceMutation = useMutation({
@@ -81,12 +72,10 @@ export default function AdminDashboard() {
 
       let workHours = null;
       if (data.clock_in && data.clock_out) {
-        const clockInTime = data.clock_in.split(":");
-        const clockOutTime = data.clock_out.split(":");
-        const clockInMinutes =
-          parseInt(clockInTime[0]) * 60 + parseInt(clockInTime[1]);
-        const clockOutMinutes =
-          parseInt(clockOutTime[0]) * 60 + parseInt(clockOutTime[1]);
+        const [inH, inM] = data.clock_in.split(":");
+        const [outH, outM] = data.clock_out.split(":");
+        const clockInMinutes = parseInt(inH) * 60 + parseInt(inM);
+        const clockOutMinutes = parseInt(outH) * 60 + parseInt(outM);
         workHours = Math.max(0, (clockOutMinutes - clockInMinutes) / 60);
       }
       return base44.entities.Attendance.update(id, {
@@ -96,73 +85,37 @@ export default function AdminDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allAttendance"] });
+      queryClient.invalidateQueries({ queryKey: ["todayAttendance"] });
       alert("Attendance updated successfully");
     },
     onError: (error) => {
-      alert(error.message || "Failed to update attendance");
+      alert(error?.error || error?.message || "Failed to update attendance");
     },
   });
 
+  // Backend handles attendance creation + notifications — we just update status
   const approveLeave = useMutation({
     mutationFn: async (request) => {
       if (!user || user.role !== "admin") {
         throw new Error("Only admins can approve leave requests");
       }
-
-      // Update leave request
-      const updated = await base44.entities.LeaveRequest.update(request.id, {
+      return base44.entities.LeaveRequest.update(request.id, {
         status: "approved",
         reviewed_by: user.email,
         reviewed_at: new Date().toISOString(),
       });
-
-      // Create attendance records for approved leave dates
-      const startDate = new Date(request.start_date);
-      const endDate = new Date(request.end_date);
-
-      for (
-        let date = new Date(startDate);
-        date <= endDate;
-        date.setDate(date.getDate() + 1)
-      ) {
-        const dateStr = date.toISOString().split("T")[0];
-
-        // Check if attendance already exists for this date
-        const existing = await base44.entities.Attendance.filter({
-          employee_email: request.employee_email,
-          date: dateStr,
-        });
-
-        if (existing.length === 0) {
-          await base44.entities.Attendance.create({
-            employee_id: request.employee_id,
-            employee_email: request.employee_email,
-            employee_name: request.employee_name,
-            date: dateStr,
-            status: "on_leave",
-            notes: `Leave: ${request.leave_type}`,
-          });
-        }
-      }
-
-      // Send notification to employee
-      await base44.entities.Notification.create({
-        user_email: request.employee_email,
-        title: "Leave Request Approved",
-        message: `Your ${request.leave_type} leave from ${request.start_date} to ${request.end_date} has been approved.`,
-        type: "leave_approved",
-        related_id: request.id,
-      });
-
-      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
       queryClient.invalidateQueries({ queryKey: ["allAttendance"] });
       queryClient.invalidateQueries({ queryKey: ["monthlyAttendance"] });
-      queryClient.invalidateQueries({ queryKey: ["myAttendance"] });
       queryClient.invalidateQueries({ queryKey: ["todayAttendance"] });
+      queryClient.invalidateQueries({ queryKey: ["myAttendance"] });
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      alert("Leave approved");
+    },
+    onError: (error) => {
+      alert(error?.error || error?.message || "Failed to approve leave");
     },
   });
 
@@ -171,47 +124,50 @@ export default function AdminDashboard() {
       if (!user || user.role !== "admin") {
         throw new Error("Only admins can reject leave requests");
       }
-
-      const updated = await base44.entities.LeaveRequest.update(request.id, {
+      return base44.entities.LeaveRequest.update(request.id, {
         status: "rejected",
         reviewed_by: user.email,
         reviewed_at: new Date().toISOString(),
       });
-
-      // Send notification to employee
-      await base44.entities.Notification.create({
-        user_email: request.employee_email,
-        title: "Leave Request Rejected",
-        message: `Your ${request.leave_type} leave from ${request.start_date} to ${request.end_date} has been rejected.`,
-        type: "leave_rejected",
-        related_id: request.id,
-      });
-
-      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leaveRequests"] });
-      queryClient.invalidateQueries({ queryKey: ["allAttendance"] });
-      queryClient.invalidateQueries({ queryKey: ["monthlyAttendance"] });
-      queryClient.invalidateQueries({ queryKey: ["myAttendance"] });
-      queryClient.invalidateQueries({ queryKey: ["todayAttendance"] });
-      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      alert("Leave rejected");
+    },
+    onError: (error) => {
+      alert(error?.error || error?.message || "Failed to reject leave");
     },
   });
 
-  const totalEmployees = employees.filter((e) => e.role === "user").length;
-  const onlineUsers = employees.filter((e) => e.is_online).length;
-  const presentToday = todayAttendance.filter(
-    (a) => a.status === "present",
-  ).length;
-  const lateToday = todayAttendance.filter((a) => a.status === "late").length;
-  const halfDayToday = todayAttendance.filter(
-    (a) => a.status === "half_day",
-  ).length;
-  const absentToday = totalEmployees - todayAttendance.length;
-  const pendingLeaves = leaveRequests.filter(
-    (l) => l.status === "pending",
-  ).length;
+  // ================================
+  // STATS CALCULATIONS (fixed -1 bug)
+  // ================================
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const safeTodayAttendance = Array.isArray(todayAttendance) ? todayAttendance : [];
+  const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
+
+  // Only count non-admin employees
+  const nonAdminEmployees = safeEmployees.filter((e) => e && e.role === "user");
+  const totalEmployees = nonAdminEmployees.length;
+  const onlineUsers = nonAdminEmployees.filter((e) => e.is_online).length;
+  const offlineUsers = Math.max(0, totalEmployees - onlineUsers);
+
+  // Only count attendance of non-admin employees
+  const nonAdminEmails = nonAdminEmployees.map((e) => e.email);
+  const employeeAttendance = safeTodayAttendance.filter((a) =>
+    nonAdminEmails.includes(a.employee_email)
+  );
+
+  const presentToday = employeeAttendance.filter((a) => a.status === "present").length;
+  const lateToday = employeeAttendance.filter((a) => a.status === "late").length;
+  const halfDayToday = employeeAttendance.filter((a) => a.status === "half_day").length;
+  const onLeaveToday = employeeAttendance.filter((a) => a.status === "on_leave").length;
+  const absentToday = Math.max(
+    0,
+    totalEmployees - (presentToday + lateToday + halfDayToday + onLeaveToday)
+  );
+
+  const pendingLeaves = safeLeaveRequests.filter((l) => l && l.status === "pending").length;
 
   if (!user) {
     return (
@@ -263,7 +219,7 @@ export default function AdminDashboard() {
           <StatsCard
             title="Online Now"
             value={onlineUsers}
-            subtitle={`${totalEmployees - onlineUsers} offline`}
+            subtitle={`${offlineUsers} offline`}
             icon={Wifi}
             color="green"
             delay={0.15}
@@ -343,8 +299,8 @@ export default function AdminDashboard() {
               </Button>
             </div>
             <EmployeeList
-              employees={employees}
-              todayAttendance={todayAttendance}
+              employees={safeEmployees}
+              todayAttendance={safeTodayAttendance}
             />
           </TabsContent>
 

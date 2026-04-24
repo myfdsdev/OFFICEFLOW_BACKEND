@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Users, Settings } from "lucide-react";
+import { ArrowLeft, Plus, Users } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import TaskRow from '../components/projects/TaskRow';
 import AddTaskDialog from '../components/projects/AddTaskDialog';
 import ManageMembersDialog from '../components/projects/ManageMembersDialog';
 
+// Safe default columns if project doesn't have them set
+const DEFAULT_COLUMNS = ['owner', 'status', 'due_date', 'priority', 'notes'];
+
 export default function ProjectBoardPage() {
   const [user, setUser] = useState(null);
   const [project, setProject] = useState(null);
+  const [isProjectLoading, setIsProjectLoading] = useState(true);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const queryClient = useQueryClient();
@@ -20,57 +24,59 @@ export default function ProjectBoardPage() {
   const projectId = urlParams.get('projectId');
   const openAddTask = urlParams.get('openAddTask');
 
+  // Load current user
   useEffect(() => {
-    base44.auth.me().then(setUser);
+    base44.auth.me().then(setUser).catch(() => setUser(null));
   }, []);
 
-  // Auto-open Add Task dialog if URL parameter is present
+  // Load project data
+  useEffect(() => {
+    if (!projectId) {
+      setIsProjectLoading(false);
+      return;
+    }
+    setIsProjectLoading(true);
+    base44.entities.Project.filter({ id: projectId })
+      .then((projects) => {
+        if (projects && projects.length > 0) {
+          setProject(projects[0]);
+        } else {
+          setProject(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load project:', err);
+        setProject(null);
+      })
+      .finally(() => setIsProjectLoading(false));
+  }, [projectId]);
+
+  // Auto-open Add Task dialog
   useEffect(() => {
     if (openAddTask === 'true' && project && user) {
       setShowAddTask(true);
-      // Remove the parameter from URL
       const newUrl = window.location.pathname + '?projectId=' + projectId;
       window.history.replaceState({}, '', newUrl);
     }
   }, [openAddTask, project, user, projectId]);
 
-  useEffect(() => {
-    if (projectId) {
-      base44.entities.Project.filter({ id: projectId }).then(projects => {
-        if (projects && projects.length > 0) {
-          setProject(projects[0]);
-        }
-      });
-    }
-  }, [projectId]);
-
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', projectId],
-    queryFn: () => base44.entities.Task.filter({ project_id: projectId }, 'position'),
+    queryFn: () =>
+      base44.entities.Task.filter({ project_id: projectId }, 'position'),
     enabled: !!projectId,
   });
 
   const { data: members = [] } = useQuery({
     queryKey: ['project-members', projectId],
-    queryFn: () => base44.entities.ProjectMember.filter({ project_id: projectId }),
+    queryFn: () =>
+      base44.entities.ProjectMember.filter({ project_id: projectId }),
     enabled: !!projectId,
   });
 
-  // Real-time task updates
-  useEffect(() => {
-    if (!projectId) return;
-
-    const unsubscribe = base44.entities.Task.subscribe((event) => {
-      if (event.data?.project_id === projectId) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
-      }
-    });
-
-    return unsubscribe;
-  }, [projectId, queryClient]);
-
   const updateTaskMutation = useMutation({
-    mutationFn: ({ taskId, data }) => base44.entities.Task.update(taskId, data),
+    mutationFn: ({ taskId, data }) =>
+      base44.entities.Task.update(taskId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
     },
@@ -83,33 +89,59 @@ export default function ProjectBoardPage() {
     },
   });
 
-  if (!user || !project) {
+  // Loading state
+  if (!user || isProjectLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+      </div>
+    );
+  }
+
+  // Project not found / no access
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 text-lg mb-4">
+            Project not found or you don't have access
+          </p>
+          <Link to={createPageUrl('Projects')}>
+            <Button variant="outline">Back to Projects</Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   const isAdmin = user.role === 'admin';
-  const isMember = members.some(m => m.user_id === user.id);
+
+  // Safe string comparison for membership
+  const userId = String(user.id || user._id || '');
+  const isMember = members.some((m) => String(m.user_id) === userId);
   const hasAccess = isAdmin || isMember;
 
-  // Calculate progress based on task status
+  // SAFE: Always use valid columns array
+  const enabledColumns = Array.isArray(project.enabled_columns) && project.enabled_columns.length
+    ? project.enabled_columns
+    : DEFAULT_COLUMNS;
+
+  // Calculate progress
   const calculateProgress = () => {
     if (tasks.length === 0) return 0;
-    
     const statusWeights = {
       not_started: 0,
       working_on_it: 50,
+      in_progress: 50,
+      review: 75,
       done: 100,
       stuck: 25,
+      todo: 0,
     };
-    
-    const totalProgress = tasks.reduce((sum, task) => {
-      return sum + (statusWeights[task.status] || 0);
-    }, 0);
-    
+    const totalProgress = tasks.reduce(
+      (sum, task) => sum + (statusWeights[task.status] || 0),
+      0
+    );
     return Math.round(totalProgress / tasks.length);
   };
 
@@ -119,9 +151,11 @@ export default function ProjectBoardPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <p className="text-red-600 text-lg">You don't have access to this project</p>
+          <p className="text-red-600 text-lg mb-4">
+            You don't have access to this project
+          </p>
           <Link to={createPageUrl('Projects')}>
-            <Button className="mt-4" variant="outline">Back to Projects</Button>
+            <Button variant="outline">Back to Projects</Button>
           </Link>
         </div>
       </div>
@@ -141,37 +175,53 @@ export default function ProjectBoardPage() {
                 </Button>
               </Link>
               <div className="flex items-center gap-3 flex-1">
-                <div 
-                  className="w-8 h-8 rounded-lg" 
-                  style={{ backgroundColor: project.color }}
+                <div
+                  className="w-8 h-8 rounded-lg"
+                  style={{ backgroundColor: project.color || '#3B82F6' }}
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-bold text-gray-900">{project.project_name}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {project.project_name}
+                    </h1>
                     <div className="flex items-center gap-3">
                       <div className="w-48 bg-gray-200 rounded-full h-2.5">
-                        <div 
+                        <div
                           className="h-2.5 rounded-full transition-all duration-300"
-                          style={{ 
+                          style={{
                             width: `${projectProgress}%`,
-                            backgroundColor: project.color 
+                            backgroundColor: project.color || '#3B82F6',
                           }}
                         />
                       </div>
-                      <span className="text-sm font-semibold text-gray-700">{projectProgress}%</span>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {projectProgress}%
+                      </span>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                  {project.description && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {project.description}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => setShowMembers(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMembers(true)}
+              >
                 <Users className="w-4 h-4 mr-2" />
                 {members.length} Members
               </Button>
-              {isAdmin && (
-                <Button onClick={() => setShowAddTask(true)} size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+              {(isAdmin || isMember) && (
+                <Button
+                  onClick={() => setShowAddTask(true)}
+                  size="sm"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Task
                 </Button>
@@ -185,37 +235,56 @@ export default function ProjectBoardPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Table Header */}
-          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-3.5 grid gap-3 items-center" style={{
-            gridTemplateColumns: `220px ${project.enabled_columns.map(col => {
-              if (col === 'owner') return '180px';
-              if (col === 'status') return '160px';
-              if (col === 'due_date') return '140px';
-              if (col === 'priority') return '120px';
-              if (col === 'files') return '100px';
-              if (col === 'notes') return '1fr';
-              return '140px';
-            }).join(' ')} 60px`
-          }}>
-            <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Task</div>
-            {project.enabled_columns.includes('owner') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Owner</div>
+          <div
+            className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-3.5 grid gap-3 items-center"
+            style={{
+              gridTemplateColumns: `220px ${enabledColumns
+                .map((col) => {
+                  if (col === 'owner') return '180px';
+                  if (col === 'status') return '160px';
+                  if (col === 'due_date') return '140px';
+                  if (col === 'priority') return '120px';
+                  if (col === 'files') return '100px';
+                  if (col === 'notes') return '1fr';
+                  return '140px';
+                })
+                .join(' ')} 60px`,
+            }}
+          >
+            <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Task
+            </div>
+            {enabledColumns.includes('owner') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Owner
+              </div>
             )}
-            {project.enabled_columns.includes('status') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Status</div>
+            {enabledColumns.includes('status') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Status
+              </div>
             )}
-            {project.enabled_columns.includes('due_date') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Due Date</div>
+            {enabledColumns.includes('due_date') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Due Date
+              </div>
             )}
-            {project.enabled_columns.includes('priority') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Priority</div>
+            {enabledColumns.includes('priority') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Priority
+              </div>
             )}
-            {project.enabled_columns.includes('files') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Files</div>
+            {enabledColumns.includes('files') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Files
+              </div>
             )}
-            {project.enabled_columns && project.enabled_columns.includes('notes') && (
-              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">Notes</div>
+            {enabledColumns.includes('notes') && (
+              <div className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Notes
+              </div>
             )}
-            <div className="text-xs font-bold text-gray-600 uppercase tracking-wider"></div>
+            <div />
           </div>
 
           {/* Task Rows */}
@@ -229,11 +298,13 @@ export default function ProjectBoardPage() {
                 <TaskRow
                   key={task.id}
                   task={task}
-                  project={project}
+                  project={{ ...project, enabled_columns: enabledColumns }}
                   members={members}
                   isAdmin={isAdmin}
-                  currentUserId={user.id}
-                  onUpdate={(data) => updateTaskMutation.mutate({ taskId: task.id, data })}
+                  currentUserId={userId}
+                  onUpdate={(data) =>
+                    updateTaskMutation.mutate({ taskId: task.id, data })
+                  }
                   onDelete={() => deleteTaskMutation.mutate(task.id)}
                 />
               ))

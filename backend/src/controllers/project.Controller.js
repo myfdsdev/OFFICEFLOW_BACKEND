@@ -5,8 +5,18 @@ import Notification from '../models/Notification.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 // @desc    Create project
+// @route   POST /api/projects
 export const createProject = asyncHandler(async (req, res) => {
-  const { project_name, description, priority, start_date, end_date, color, members = [] } = req.body;
+  const {
+    project_name,
+    description,
+    priority,
+    start_date,
+    end_date,
+    color,
+    enabled_columns,
+    members = [],
+  } = req.body;
 
   if (!project_name) {
     return res.status(400).json({ error: 'Project name is required' });
@@ -21,6 +31,9 @@ export const createProject = asyncHandler(async (req, res) => {
     start_date,
     end_date,
     color: color || '#3B82F6',
+    enabled_columns: Array.isArray(enabled_columns) && enabled_columns.length
+      ? enabled_columns
+      : ['owner', 'status', 'due_date', 'priority', 'notes'],
   });
 
   // Creator auto-added as owner
@@ -35,31 +48,36 @@ export const createProject = asyncHandler(async (req, res) => {
 
   // Additional members
   if (members.length) {
-    const memberDocs = members.map((m) => ({
-      project_id: project._id,
-      project_name: project.project_name,
-      user_id: m.user_id,
-      user_email: m.user_email,
-      user_name: m.user_name,
-      role: m.role || 'member',
-    }));
-    await ProjectMember.insertMany(memberDocs);
-
-    await Notification.insertMany(
-      members.map((m) => ({
+    const memberDocs = members
+      .filter((m) => m.user_email !== req.user.email) // don't duplicate creator
+      .map((m) => ({
+        project_id: project._id,
+        project_name: project.project_name,
+        user_id: m.user_id,
         user_email: m.user_email,
-        title: 'Added to Project',
-        message: `You've been added to "${project.project_name}"`,
-        type: 'project_assigned',
-        related_id: project._id.toString(),
-      }))
-    );
+        user_name: m.user_name,
+        role: m.role || 'member',
+      }));
+    if (memberDocs.length) {
+      await ProjectMember.insertMany(memberDocs);
+
+      await Notification.insertMany(
+        memberDocs.map((m) => ({
+          user_email: m.user_email,
+          title: 'Added to Project',
+          message: `You've been added to "${project.project_name}"`,
+          type: 'project_assigned',
+          related_id: project._id.toString(),
+        }))
+      );
+    }
   }
 
   res.status(201).json(project);
 });
 
-// @desc    Get all projects (with membership filter for non-admin)
+// @desc    Get all projects
+// @route   GET /api/projects
 export const getAllProjects = asyncHandler(async (req, res) => {
   const { is_archived, status, sort = '-createdAt' } = req.query;
 
@@ -67,6 +85,7 @@ export const getAllProjects = asyncHandler(async (req, res) => {
   if (is_archived !== undefined) filter.is_archived = is_archived === 'true';
   if (status) filter.status = status;
 
+  // Non-admin: restrict to member projects
   if (req.user.role !== 'admin') {
     const memberships = await ProjectMember.find({ user_id: req.user._id }).select('project_id');
     filter._id = { $in: memberships.map((m) => m.project_id) };
@@ -77,10 +96,16 @@ export const getAllProjects = asyncHandler(async (req, res) => {
 });
 
 // @desc    Filter projects (base44 pattern)
+// @route   GET /api/projects/filter
 export const filterProjects = asyncHandler(async (req, res) => {
   const filter = { ...req.query };
   delete filter.sort;
   delete filter.limit;
+
+  // Convert boolean strings
+  if (filter.is_archived !== undefined) {
+    filter.is_archived = filter.is_archived === 'true';
+  }
 
   // Non-admin: restrict to member projects
   if (req.user.role !== 'admin') {
@@ -88,7 +113,7 @@ export const filterProjects = asyncHandler(async (req, res) => {
     const memberProjectIds = memberships.map((m) => m.project_id.toString());
 
     if (filter._id) {
-      // Specific project requested — check user is a member
+      // Specific project requested — check membership
       const requestedId = filter._id.toString();
       if (!memberProjectIds.includes(requestedId)) {
         return res.json([]);
@@ -106,6 +131,7 @@ export const filterProjects = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get project by ID
+// @route   GET /api/projects/:id
 export const getProjectById = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -122,6 +148,7 @@ export const getProjectById = asyncHandler(async (req, res) => {
 });
 
 // @desc    Update project
+// @route   PUT /api/projects/:id
 export const updateProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -140,7 +167,8 @@ export const updateProject = asyncHandler(async (req, res) => {
 
   const allowedFields = [
     'project_name', 'description', 'status', 'priority',
-    'start_date', 'end_date', 'is_archived', 'color', 'notes',
+    'start_date', 'end_date', 'is_archived', 'color',
+    'notes', 'enabled_columns',
   ];
   allowedFields.forEach((f) => {
     if (req.body[f] !== undefined) project[f] = req.body[f];
@@ -148,6 +176,7 @@ export const updateProject = asyncHandler(async (req, res) => {
 
   await project.save();
 
+  // Keep project_name denormalized on ProjectMember up-to-date
   if (req.body.project_name) {
     await ProjectMember.updateMany(
       { project_id: project._id },
@@ -158,7 +187,8 @@ export const updateProject = asyncHandler(async (req, res) => {
   res.json(project);
 });
 
-// @desc    Delete project
+// @desc    Delete project (cascades tasks + members)
+// @route   DELETE /api/projects/:id
 export const deleteProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) return res.status(404).json({ error: 'Project not found' });
@@ -175,14 +205,16 @@ export const deleteProject = asyncHandler(async (req, res) => {
 
   if (!canDelete) return res.status(403).json({ error: 'Access denied' });
 
+  // Cascade delete — backend handles everything
   await Task.deleteMany({ project_id: project._id });
   await ProjectMember.deleteMany({ project_id: project._id });
   await project.deleteOne();
 
-  res.json({ message: 'Project deleted' });
+  res.json({ message: 'Project and all related data deleted' });
 });
 
 // @desc    Archive/unarchive project
+// @route   PATCH /api/projects/:id/archive
 export const toggleArchive = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.id);
   if (!project) return res.status(404).json({ error: 'Project not found' });

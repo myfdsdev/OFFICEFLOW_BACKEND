@@ -15,57 +15,44 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    base44.auth.me().then(setUser);
+    base44.auth.me().then(setUser).catch(() => setUser(null));
   }, []);
 
-  const { data: projects, isLoading } = useQuery({
+  // Backend handles membership filtering — just fetch
+  const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'],
-    queryFn: async () => {
-      const allProjects = await base44.entities.Project.filter({ is_archived: false });
-      
-      if (user?.role === 'admin') {
-        return allProjects;
-      }
-      
-      // For regular users, only show projects they're members of
-      const memberships = await base44.entities.ProjectMember.filter({ user_id: user?.id });
-      const memberProjectIds = memberships.map(m => m.project_id);
-      return allProjects.filter(p => memberProjectIds.includes(p.id));
-    },
+    queryFn: () => base44.entities.Project.filter({ is_archived: false }),
     enabled: !!user,
-    initialData: [],
   });
 
   const handleOpenProject = (projectId) => {
     navigate(createPageUrl('ProjectBoard') + `?projectId=${projectId}`);
   };
 
+  // Backend cascades tasks + members on delete — just call one endpoint
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId) => {
-      // Delete all tasks first
-      const tasks = await base44.entities.Task.filter({ project_id: projectId });
-      await Promise.all(tasks.map(task => base44.entities.Task.delete(task.id)));
-      
-      // Delete all project members
-      const members = await base44.entities.ProjectMember.filter({ project_id: projectId });
-      await Promise.all(members.map(member => base44.entities.ProjectMember.delete(member.id)));
-      
-      // Delete the project
       await base44.entities.Project.delete(projectId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
+    onError: (error) => {
+      alert(error?.error || error?.message || 'Failed to delete project');
+    },
   });
 
   const handleDeleteProject = (projectId) => {
+    if (!confirm('Delete this project? This will also delete all tasks and members.')) {
+      return;
+    }
     deleteProjectMutation.mutate(projectId);
   };
 
   if (!user || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -80,10 +67,15 @@ export default function ProjectsPage() {
               <FolderKanban className="w-8 h-8 text-indigo-600" />
               Projects
             </h1>
-            <p className="text-gray-600 mt-2">Manage your team's projects and tasks</p>
+            <p className="text-gray-600 mt-2">
+              Manage your team's projects and tasks
+            </p>
           </div>
           {user.role === 'admin' && (
-            <Button onClick={() => setShowCreateDialog(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button
+              onClick={() => setShowCreateDialog(true)}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
               <Plus className="w-4 h-4 mr-2" />
               New Project
             </Button>

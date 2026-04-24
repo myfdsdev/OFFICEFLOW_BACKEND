@@ -28,6 +28,11 @@ const projectSchema = new mongoose.Schema({
   is_archived: { type: Boolean, default: false },
   color: { type: String, default: '#3B82F6' },
   notes: { type: String, default: '' },
+  // Which table columns to show on the Kanban/board view
+  enabled_columns: {
+    type: [String],
+    default: ['owner', 'status', 'due_date', 'priority', 'notes'],
+  },
   files: [{
     file_name: String,
     file_url: String,

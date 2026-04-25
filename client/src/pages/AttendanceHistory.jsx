@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, lastDayOfMonth } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,18 +18,36 @@ export default function AttendanceHistoryPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    base44.auth.me().then(setUser);
+    base44.auth.me().then(setUser).catch(() => setUser(null));
   }, []);
 
   const { data: attendance = [], isLoading } = useQuery({
     queryKey: ['myFullAttendance', user?.email, selectedMonth],
-    queryFn: () => base44.entities.Attendance.filter({
-      employee_email: user.email,
-      date: { 
-        $gte: `${selectedMonth}-01`, 
-        $lte: `${selectedMonth}-31` 
+    queryFn: async () => {
+      if (!user?.email) return [];
+      
+      // Calculate proper start + end dates for selected month
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = lastDayOfMonth(firstDay);
+      
+      const startDate = format(firstDay, 'yyyy-MM-dd');
+      const endDate = format(lastDay, 'yyyy-MM-dd');
+      
+      try {
+        const records = await base44.entities.Attendance.filter({
+          employee_email: user.email,
+          date: { 
+            $gte: startDate, 
+            $lte: endDate,
+          }
+        }, '-date');
+        return records || [];
+      } catch (error) {
+        console.error('Failed to fetch attendance:', error);
+        return [];
       }
-    }, '-date'),
+    },
     enabled: !!user?.email,
   });
 
@@ -37,8 +55,9 @@ export default function AttendanceHistoryPage() {
     ? attendance 
     : attendance.filter(a => a.status === statusFilter);
 
-  const presentDays = attendance.filter(a => a.status === 'present').length;
-  const totalHours = attendance.reduce((sum, a) => sum + (a.total_work_hours || 0), 0);
+  // FIX: Backend uses 'work_hours' not 'total_work_hours'
+  const presentDays = attendance.filter(a => a.status === 'present' || a.status === 'late' || a.status === 'half_day').length;
+  const totalHours = attendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
   const avgHours = presentDays > 0 ? (totalHours / presentDays).toFixed(1) : '0';
 
   const generateMonthOptions = () => {
@@ -140,7 +159,15 @@ export default function AttendanceHistoryPage() {
           </CardContent>
         </Card>
 
-        <AttendanceHistory attendance={filteredAttendance} />
+        {isLoading ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-8 text-center">
+              <div className="animate-pulse text-gray-400">Loading attendance...</div>
+            </CardContent>
+          </Card>
+        ) : (
+          <AttendanceHistory attendance={filteredAttendance} />
+        )}
       </div>
     </div>
   );

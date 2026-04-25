@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { format, subMonths, startOfMonth, endOfMonth, lastDayOfMonth } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { format, subMonths, lastDayOfMonth } from 'date-fns';
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Clock, Filter } from "lucide-react";
 import { motion } from "framer-motion";
@@ -18,47 +16,63 @@ export default function AttendanceHistoryPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => setUser(null));
+    base44.auth.me().then((u) => {
+      console.log('[AttendanceHistory] Current user:', u);
+      setUser(u);
+    }).catch(() => setUser(null));
   }, []);
 
-  const { data: attendance = [], isLoading } = useQuery({
-    queryKey: ['myFullAttendance', user?.email, selectedMonth],
+  // STRATEGY: Try simple email-only filter first, then filter dates client-side
+  // This is more robust against date-format issues
+  const { data: allAttendance = [], isLoading } = useQuery({
+    queryKey: ['myFullAttendance', user?.email],
     queryFn: async () => {
       if (!user?.email) return [];
       
-      // Calculate proper start + end dates for selected month
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const firstDay = new Date(year, month - 1, 1);
-      const lastDay = lastDayOfMonth(firstDay);
-      
-      const startDate = format(firstDay, 'yyyy-MM-dd');
-      const endDate = format(lastDay, 'yyyy-MM-dd');
+      console.log('[AttendanceHistory] Fetching for:', user.email);
       
       try {
+        // Get ALL attendance for this user (no date filter at backend)
         const records = await base44.entities.Attendance.filter({
           employee_email: user.email,
-          date: { 
-            $gte: startDate, 
-            $lte: endDate,
-          }
-        }, '-date');
+        }, '-date', 1000);
+        
+        console.log('[AttendanceHistory] Got records:', records?.length, records);
         return records || [];
       } catch (error) {
-        console.error('Failed to fetch attendance:', error);
+        console.error('[AttendanceHistory] Failed:', error);
         return [];
       }
     },
     enabled: !!user?.email,
   });
 
-  const filteredAttendance = statusFilter === 'all' 
-    ? attendance 
-    : attendance.filter(a => a.status === statusFilter);
+  // Filter by month CLIENT-SIDE (avoids date format issues)
+  const monthAttendance = allAttendance.filter(a => {
+    if (!a.date) return false;
+    // a.date is "YYYY-MM-DD" — check if it starts with selected month
+    return a.date.startsWith(selectedMonth);
+  });
 
-  // FIX: Backend uses 'work_hours' not 'total_work_hours'
-  const presentDays = attendance.filter(a => a.status === 'present' || a.status === 'late' || a.status === 'half_day').length;
-  const totalHours = attendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
+  // Filter by status
+  const filteredAttendance = statusFilter === 'all' 
+    ? monthAttendance 
+    : monthAttendance.filter(a => a.status === statusFilter);
+
+  // Stats — uses correct backend field name 'work_hours'
+  const presentDays = monthAttendance.filter(a => 
+    a.status === 'present' || a.status === 'late' || a.status === 'half_day'
+  ).length;
+  const totalHours = monthAttendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
   const avgHours = presentDays > 0 ? (totalHours / presentDays).toFixed(1) : '0';
+
+  console.log('[AttendanceHistory] Stats:', { 
+    selectedMonth, 
+    totalRecords: allAttendance.length, 
+    monthRecords: monthAttendance.length,
+    presentDays,
+    totalHours
+  });
 
   const generateMonthOptions = () => {
     const options = [];
@@ -163,6 +177,28 @@ export default function AttendanceHistoryPage() {
           <Card className="border-0 shadow-sm">
             <CardContent className="p-8 text-center">
               <div className="animate-pulse text-gray-400">Loading attendance...</div>
+            </CardContent>
+          </Card>
+        ) : allAttendance.length === 0 ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">No attendance records yet</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Your attendance history will appear here after you check in.
+              </p>
+            </CardContent>
+          </Card>
+        ) : monthAttendance.length === 0 ? (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">
+                No records for {format(new Date(selectedMonth + '-01'), 'MMMM yyyy')}
+              </p>
+              <p className="text-sm text-gray-400 mt-1">
+                Try selecting a different month — you have {allAttendance.length} record(s) total.
+              </p>
             </CardContent>
           </Card>
         ) : (

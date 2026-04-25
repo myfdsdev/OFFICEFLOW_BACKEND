@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { User, Mail, Phone, Building, IdCard, Shield, Upload, Save } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const departments = [
   "Video Editor",
@@ -34,40 +35,114 @@ export default function MyProfile() {
     base44.auth.me().then((userData) => {
       setUser(userData);
       setFormData({
-        mobile_number: userData.mobile_number || '',
-        employee_id: userData.employee_id || '',
-        department: userData.department || '',
-        profile_photo: userData.profile_photo || '',
+        mobile_number: userData?.mobile_number || '',
+        employee_id: userData?.employee_id || '',
+        department: userData?.department || '',
+        profile_photo: userData?.profile_photo || '',
       });
-    });
+    }).catch(() => {});
   }, []);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data) => base44.auth.updateMe(data),
     onSuccess: (updatedUser) => {
+      console.log('[MyProfile] Update success:', updatedUser);
       setUser(updatedUser);
+      setFormData({
+        mobile_number: updatedUser?.mobile_number || '',
+        employee_id: updatedUser?.employee_id || '',
+        department: updatedUser?.department || '',
+        profile_photo: updatedUser?.profile_photo || '',
+      });
       setIsEditing(false);
+      toast.success('Profile updated successfully');
+    },
+    onError: (error) => {
+      console.error('[MyProfile] Update failed:', error);
+      toast.error('Failed: ' + (error?.error || error?.message || 'Unknown error'));
     },
   });
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image too large (max 5MB)');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setFormData({ ...formData, profile_photo: file_url });
+      const result = await base44.integrations.Core.UploadFile({ file });
+      console.log('[MyProfile] Upload result:', result);
+
+      // Extract URL from various possible response shapes
+      const fileUrl = result?.file_url || result?.url || result?.secure_url;
+      
+      if (!fileUrl) {
+        console.error('[MyProfile] No URL in upload response:', result);
+        toast.error('Upload returned no URL');
+        return;
+      }
+
+      console.log('[MyProfile] Got file URL:', fileUrl);
+
+      // 🚀 KEY FIX: Auto-save the photo immediately, don't wait for "Save"
+      // This way user sees the photo instantly + it's persisted
+      const updatedUser = await base44.auth.updateMe({
+        profile_photo: fileUrl,
+      });
+      
+      console.log('[MyProfile] Auto-save result:', updatedUser);
+      
+      // Update local state with the saved data
+      setUser(updatedUser);
+      setFormData({
+        ...formData,
+        profile_photo: fileUrl,
+      });
+      
+      toast.success('Photo updated!');
     } catch (error) {
-      alert('Failed to upload image');
+      console.error('[MyProfile] Upload error:', error);
+      toast.error('Failed to upload: ' + (error?.error || error?.message || 'Unknown error'));
     } finally {
       setUploading(false);
+      // Reset file input so same file can be selected again
+      e.target.value = '';
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+
+    if (formData.mobile_number && formData.mobile_number.length < 10) {
+      toast.error('Mobile number too short');
+      return;
+    }
+
+    // Don't include profile_photo in this update — it's already saved on upload
+    updateProfileMutation.mutate({
+      mobile_number: formData.mobile_number,
+      employee_id: formData.employee_id,
+      department: formData.department,
+    });
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setFormData({
+      mobile_number: user?.mobile_number || '',
+      employee_id: user?.employee_id || '',
+      department: user?.department || '',
+      profile_photo: user?.profile_photo || '',
+    });
   };
 
   const getInitials = (name) => {
@@ -99,15 +174,38 @@ export default function MyProfile() {
           {/* Profile Card */}
           <Card className="border-0 shadow-sm md:col-span-1">
             <CardContent className="p-6 text-center">
-              <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-indigo-100">
-                {user.profile_photo ? (
-                  <AvatarImage src={user.profile_photo} alt={user.full_name} />
-                ) : (
-                  <AvatarFallback className="bg-indigo-100 text-indigo-600 text-3xl font-semibold">
-                    {getInitials(user.full_name)}
-                  </AvatarFallback>
-                )}
-              </Avatar>
+              <div className="relative inline-block">
+                <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-indigo-100">
+                  {user.profile_photo ? (
+                    <AvatarImage src={user.profile_photo} alt={user.full_name} />
+                  ) : (
+                    <AvatarFallback className="bg-indigo-100 text-indigo-600 text-3xl font-semibold">
+                      {getInitials(user.full_name)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                {/* Quick photo upload directly from sidebar */}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="photo-upload-sidebar"
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('photo-upload-sidebar').click()}
+                  disabled={uploading}
+                  className="absolute bottom-4 right-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 shadow-lg disabled:opacity-50"
+                  title="Change photo"
+                >
+                  {uploading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">{user.full_name}</h2>
               <p className="text-gray-500 text-sm mb-3">{user.email}</p>
               <Badge className={user.role === 'admin' ? "bg-indigo-100 text-indigo-600" : "bg-gray-100 text-gray-600"}>
@@ -158,40 +256,6 @@ export default function MyProfile() {
             <CardContent>
               {isEditing ? (
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="flex flex-col items-center gap-3 pb-4 border-b">
-                    <Avatar className="w-20 h-20 border-4 border-indigo-100">
-                      {formData.profile_photo ? (
-                        <AvatarImage src={formData.profile_photo} alt={user.full_name} />
-                      ) : (
-                        <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xl font-semibold">
-                          {getInitials(user.full_name)}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        id="photo-upload-edit"
-                      />
-                      <label htmlFor="photo-upload-edit">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={uploading}
-                          onClick={() => document.getElementById('photo-upload-edit').click()}
-                          className="cursor-pointer"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          {uploading ? 'Uploading...' : 'Change Photo'}
-                        </Button>
-                      </label>
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label>Full Name</Label>
                     <Input value={user.full_name} disabled className="bg-gray-50" />
@@ -210,6 +274,7 @@ export default function MyProfile() {
                         type="tel"
                         value={formData.mobile_number}
                         onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
+                        placeholder="10+ digit number"
                       />
                     </div>
 
@@ -218,6 +283,7 @@ export default function MyProfile() {
                       <Input
                         value={formData.employee_id}
                         onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                        placeholder="e.g. EMP001"
                       />
                     </div>
                   </div>
@@ -241,19 +307,16 @@ export default function MyProfile() {
                     </Select>
                   </div>
 
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                    💡 <strong>Tip:</strong> Click the upload icon on your profile photo to change it. Photo saves automatically.
+                  </div>
+
                   <div className="flex gap-3 pt-4">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setFormData({
-                          mobile_number: user.mobile_number || '',
-                          employee_id: user.employee_id || '',
-                          department: user.department || '',
-                          profile_photo: user.profile_photo || '',
-                        });
-                      }}
+                      onClick={handleCancel}
+                      disabled={updateProfileMutation.isPending}
                       className="flex-1"
                     >
                       Cancel

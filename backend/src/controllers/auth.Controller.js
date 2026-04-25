@@ -2,7 +2,8 @@ import User from '../models/User.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendWelcomeEmail } from '../utils/sendEmail.js';
-
+import { OAuth2Client } from 'google-auth-library';
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // ==========================================
 // Helper: Build user response object (used everywhere)
 // ==========================================
@@ -112,6 +113,76 @@ export const login = asyncHandler(async (req, res) => {
 
   res.json({
     message: 'Login successful',
+    token: accessToken,
+    user: buildUserResponse(user),
+  });
+});
+
+export const googleLogin = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(400).json({ error: 'Google credential is required' });
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(500).json({ error: 'GOOGLE_CLIENT_ID is missing in backend .env' });
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+
+  if (!payload?.email || !payload?.sub) {
+    return res.status(401).json({ error: 'Invalid Google account' });
+  }
+
+  const email = payload.email.toLowerCase();
+
+  let user = await User.findOne({ email });
+
+  const adminEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!user) {
+    user = await User.create({
+      email,
+      full_name: payload.name || email.split('@')[0],
+      profile_photo: payload.picture || '',
+      google_id: payload.sub,
+      auth_provider: 'google',
+      role: adminEmails.includes(email) ? 'admin' : 'user',
+      department: '',
+      employee_id: '',
+      mobile_number: '',
+    });
+  } else {
+    if (!user.google_id) user.google_id = payload.sub;
+    if (!user.auth_provider) user.auth_provider = 'google';
+    if (!user.profile_photo && payload.picture) user.profile_photo = payload.picture;
+  }
+
+  user.is_online = true;
+  user.last_active = new Date();
+  await user.save();
+
+  const accessToken = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  res.json({
+    message: 'Google login successful',
     token: accessToken,
     user: buildUserResponse(user),
   });

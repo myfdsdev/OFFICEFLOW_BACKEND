@@ -1,20 +1,20 @@
-import axios from 'axios';
+import axios from "axios";
 import {
   connectSocket,
   subscribeToEntity,
   disconnectSocket,
-} from './socketClient';
+} from "./socketClient";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
 });
 
 // ========== TOKEN ==========
-const TOKEN_KEY = 'workflow_token';
+const TOKEN_KEY = "workflow_token";
 export const setToken = (token) => {
   if (token) localStorage.setItem(TOKEN_KEY, token);
   else localStorage.removeItem(TOKEN_KEY);
@@ -32,34 +32,34 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       setToken(null);
-      const publicPages = ['/Welcome', '/Login', '/Register', '/'];
+      const publicPages = ["/Welcome", "/Login", "/Register", "/"];
       const currentPath = window.location.pathname;
       const isOnPublicPage = publicPages.some(
-        (p) => currentPath === p || currentPath.startsWith(p + '?')
+        (p) => currentPath === p || currentPath.startsWith(p + "?"),
       );
-      if (!isOnPublicPage) window.location.href = '/Welcome';
+      if (!isOnPublicPage) window.location.href = "/Welcome";
     }
     return Promise.reject(err.response?.data || err);
-  }
+  },
 );
 
 // ========== ENTITY ROUTES ==========
 const ENTITY_ROUTES = {
-  User: '/users',
-  Attendance: '/attendance',
-  AttendanceSession: '/attendance-sessions',
-  LeaveRequest: '/leave',
-  Notification: '/notifications',
-  Message: '/messages',
-  MessageReminder: '/message-reminders',
-  Group: '/groups',
-  GroupMember: '/group-members',
-  GroupMessage: '/group-messages',
-  Project: '/projects',
-  ProjectMember: '/project-members',
-  Task: '/tasks',
-  Company: '/companies',
-  Subscription: '/subscriptions',
+  User: "/users",
+  Attendance: "/attendance",
+  AttendanceSession: "/attendance-sessions",
+  LeaveRequest: "/leave",
+  Notification: "/notifications",
+  Message: "/messages",
+  MessageReminder: "/message-reminders",
+  Group: "/groups",
+  GroupMember: "/group-members",
+  GroupMessage: "/group-messages",
+  Project: "/projects",
+  ProjectMember: "/project-members",
+  Task: "/tasks",
+  Company: "/companies",
+  Subscription: "/subscriptions",
 };
 
 // ========== HELPERS ==========
@@ -83,14 +83,14 @@ const normalizeList = (data) => {
 
 const stripZ = (dateStr) => {
   if (!dateStr) return dateStr;
-  if (typeof dateStr !== 'string') {
+  if (typeof dateStr !== "string") {
     dateStr = new Date(dateStr).toISOString();
   }
-  return dateStr.endsWith('Z') ? dateStr.slice(0, -1) : dateStr;
+  return dateStr.endsWith("Z") ? dateStr.slice(0, -1) : dateStr;
 };
 
 const normalizeItem = (item) => {
-  if (!item || typeof item !== 'object') return item;
+  if (!item || typeof item !== "object") return item;
   return {
     ...item,
     id: item.id || item._id,
@@ -102,10 +102,10 @@ const normalizeItem = (item) => {
 const normalizeItems = (items) => items.map(normalizeItem);
 
 const translateField = (s) => {
-  if (typeof s !== 'string') return s;
+  if (typeof s !== "string") return s;
   return s
-    .replace(/created_date/g, 'createdAt')
-    .replace(/updated_date/g, 'updatedAt');
+    .replace(/created_date/g, "createdAt")
+    .replace(/updated_date/g, "updatedAt");
 };
 
 // ========== ENTITY FACTORY ==========
@@ -123,15 +123,19 @@ const createEntity = (entityName) => {
   };
 
   return {
-    list: async (sort = '-createdAt', limit = 100) => {
+    list: async (sort = "-createdAt", limit = 100) => {
       const res = await api.get(route, {
         params: { sort: translateField(sort), limit },
       });
       return normalizeItems(normalizeList(res.data));
     },
-    filter: async (filterObj = {}, sort = '-createdAt', limit = 100) => {
+    filter: async (filterObj = {}, sort = "-createdAt", limit = 100) => {
       const res = await api.get(`${route}/filter`, {
-        params: { ...translateFilter(filterObj), sort: translateField(sort), limit },
+        params: {
+          ...translateFilter(filterObj),
+          sort: translateField(sort),
+          limit,
+        },
       });
       return normalizeItems(normalizeList(res.data));
     },
@@ -144,11 +148,11 @@ const createEntity = (entityName) => {
       return normalizeItem(res.data.user || res.data);
     },
     update: async (id, data) => {
-      if (entityName === 'Notification' && data.is_read === true) {
+      if (entityName === "Notification" && data.is_read === true) {
         const res = await api.put(`${route}/${id}/read`, {});
         return normalizeItem(res.data);
       }
-      if (entityName === 'Message' && data.is_read === true) {
+      if (entityName === "Message" && data.is_read === true) {
         const res = await api.put(`${route}/${id}`, data);
         return normalizeItem(res.data);
       }
@@ -170,21 +174,31 @@ const auth = {
   me: async () => {
     const token = getToken();
     if (!token) {
-      const err = new Error('Not authenticated');
+      const err = new Error("Not authenticated");
       err.status = 401;
       throw err;
     }
-    const res = await api.get('/auth/me');
+    const res = await api.get("/auth/me");
     // Connect socket once we're logged in
     connectSocket();
     return normalizeItem(res.data);
   },
+  googleLogin: async (credential) => {
+    const res = await api.post("/auth/google", { credential });
+
+    if (res.data.token) {
+      setToken(res.data.token);
+      connectSocket();
+    }
+
+    return res.data;
+  },
   updateMe: async (data) => {
-    const res = await api.put('/auth/update-profile', data);
+    const res = await api.put("/auth/update-profile", data);
     return normalizeItem(res.data.user || res.data);
   },
   login: async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
+    const res = await api.post("/auth/login", { email, password });
     if (res.data.token) {
       setToken(res.data.token);
       connectSocket();
@@ -192,7 +206,7 @@ const auth = {
     return res.data;
   },
   register: async (userData) => {
-    const res = await api.post('/auth/register', userData);
+    const res = await api.post("/auth/register", userData);
     if (res.data.token) {
       setToken(res.data.token);
       connectSocket();
@@ -201,23 +215,23 @@ const auth = {
   },
   logout: async (redirectUrl) => {
     try {
-      await api.post('/auth/logout');
+      await api.post("/auth/logout");
     } catch {}
     disconnectSocket();
     setToken(null);
-    window.location.href = redirectUrl || '/Welcome';
+    window.location.href = redirectUrl || "/Welcome";
   },
   redirectToLogin: (fromUrl) => {
     window.location.href = `/Welcome?from=${encodeURIComponent(
-      fromUrl || window.location.href
+      fromUrl || window.location.href,
     )}`;
   },
   updateProfile: async (data) => {
-    const res = await api.put('/auth/update-profile', data);
+    const res = await api.put("/auth/update-profile", data);
     return normalizeItem(res.data.user || res.data);
   },
   changePassword: async (currentPassword, newPassword) => {
-    const res = await api.put('/auth/change-password', {
+    const res = await api.put("/auth/change-password", {
       currentPassword,
       newPassword,
     });
@@ -227,13 +241,13 @@ const auth = {
 
 // ========== FUNCTIONS ==========
 const FUNCTION_ROUTES = {
-  calculateAttendance: '/functions/calculate-attendance',
-  checkMessageReminders: '/functions/check-message-reminders',
-  exportAttendanceReport: '/functions/export-attendance-report',
-  notifyNewMessage: '/functions/notify-new-message',
-  processPayment: '/functions/process-payment',
-  sendAttendanceReminder: '/functions/send-attendance-reminder',
-  getUsersForMessaging: '/functions/get-users-for-messaging',
+  calculateAttendance: "/functions/calculate-attendance",
+  checkMessageReminders: "/functions/check-message-reminders",
+  exportAttendanceReport: "/functions/export-attendance-report",
+  notifyNewMessage: "/functions/notify-new-message",
+  processPayment: "/functions/process-payment",
+  sendAttendanceReminder: "/functions/send-attendance-reminder",
+  getUsersForMessaging: "/functions/get-users-for-messaging",
 };
 
 const functions = {
@@ -244,43 +258,47 @@ const functions = {
       throw new Error(`Unknown function: ${functionName}`);
     }
     const isFileDownload =
-      data.format === 'pdf' || data.format === 'excel' || options.responseType === 'blob';
+      data.format === "pdf" ||
+      data.format === "excel" ||
+      options.responseType === "blob";
     const res = await api.post(route, data, {
-      responseType: isFileDownload ? 'blob' : 'json',
+      responseType: isFileDownload ? "blob" : "json",
     });
     return res.data;
   },
   calculateAttendance: (data) =>
-    api.post('/functions/calculate-attendance', data).then((r) => r.data),
+    api.post("/functions/calculate-attendance", data).then((r) => r.data),
   checkMessageReminders: () =>
-    api.post('/functions/check-message-reminders').then((r) => r.data),
-  exportAttendanceReport: async ({ month, format = 'pdf' }) => {
+    api.post("/functions/check-message-reminders").then((r) => r.data),
+  exportAttendanceReport: async ({ month, format = "pdf" }) => {
     const res = await api.post(
-      '/functions/export-attendance-report',
+      "/functions/export-attendance-report",
       { month, format },
-      { responseType: format === 'pdf' || format === 'excel' ? 'blob' : 'json' }
+      {
+        responseType: format === "pdf" || format === "excel" ? "blob" : "json",
+      },
     );
     return res.data;
   },
   notifyNewMessage: (data) =>
-    api.post('/functions/notify-new-message', data).then((r) => r.data),
+    api.post("/functions/notify-new-message", data).then((r) => r.data),
   processPayment: (data) =>
-    api.post('/functions/process-payment', data).then((r) => r.data),
+    api.post("/functions/process-payment", data).then((r) => r.data),
   sendAttendanceReminder: () =>
-    api.post('/functions/send-attendance-reminder').then((r) => r.data),
+    api.post("/functions/send-attendance-reminder").then((r) => r.data),
   getUsersForMessaging: () =>
-    api.post('/functions/get-users-for-messaging').then((r) => r.data),
+    api.post("/functions/get-users-for-messaging").then((r) => r.data),
 };
 
 // ========== INTEGRATIONS ==========
 const integrations = {
   Core: {
-    UploadFile: async ({ file, folder = 'general' }) => {
+    UploadFile: async ({ file, folder = "general" }) => {
       const fd = new FormData();
-      fd.append('file', file);
-      fd.append('folder', folder);
-      const res = await api.post('/upload', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      fd.append("file", file);
+      fd.append("folder", folder);
+      const res = await api.post("/upload", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
       return {
         file_url: res.data.url,
@@ -294,44 +312,44 @@ const integrations = {
 
 // ========== UPLOAD ==========
 const upload = {
-  file: async (file, folder = 'general') => {
+  file: async (file, folder = "general") => {
     const fd = new FormData();
-    fd.append('file', file);
-    fd.append('folder', folder);
-    const res = await api.post('/upload', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    fd.append("file", file);
+    fd.append("folder", folder);
+    const res = await api.post("/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
   profilePhoto: async (file) => {
     const fd = new FormData();
-    fd.append('photo', file);
-    const res = await api.post('/upload/profile-photo', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    fd.append("photo", file);
+    const res = await api.post("/upload/profile-photo", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
   projectFile: async (projectId, file) => {
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append("file", file);
     const res = await api.post(`/upload/project/${projectId}`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
   groupPhoto: async (groupId, file) => {
     const fd = new FormData();
-    fd.append('photo', file);
+    fd.append("photo", file);
     const res = await api.post(`/upload/group/${groupId}/photo`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
   messageAttachment: async (file) => {
     const fd = new FormData();
-    fd.append('file', file);
-    const res = await api.post('/upload/message-attachment', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    fd.append("file", file);
+    const res = await api.post("/upload/message-attachment", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data;
   },
@@ -339,11 +357,11 @@ const upload = {
 
 // ========== USERS (admin invite) ==========
 const users = {
-  inviteUser: async (email, role = 'user', extraData = {}) => {
-    const res = await api.post('/users/invite', {
+  inviteUser: async (email, role = "user", extraData = {}) => {
+    const res = await api.post("/users/invite", {
       email,
       role,
-      full_name: extraData.full_name || email.split('@')[0],
+      full_name: extraData.full_name || email.split("@")[0],
       ...extraData,
     });
     return res.data;

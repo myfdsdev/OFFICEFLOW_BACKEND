@@ -8,32 +8,60 @@ import { motion } from "framer-motion";
 import { Clock, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import toast from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const redirectAfterLogin = (user) => {
+    if (user.mobile_number && user.employee_id && user.department) {
+      window.location.href = user.role === 'admin'
+        ? createPageUrl('AdminDashboard')
+        : createPageUrl('Dashboard');
+    } else {
+      window.location.href = createPageUrl('CompleteProfile');
+    }
+  };
+
+  // GOOGLE LOGIN
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const credential = credentialResponse?.credential;
+
+    if (!credential) {
+      toast.error('Google login failed');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await base44.auth.googleLogin(credential);
+      toast.success('Google login successful');
+      redirectAfterLogin(result.user);
+    } catch (err) {
+      toast.error(err?.error || 'Google login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // EMAIL LOGIN
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!email || !password) {
       toast.error('Please fill in all fields');
       return;
     }
 
     setLoading(true);
+
     try {
       const result = await base44.auth.login(email, password);
       toast.success('Welcome back!');
-
-      // Check if profile is complete
-      if (result.user.mobile_number && result.user.employee_id && result.user.department) {
-        window.location.href = result.user.role === 'admin'
-          ? createPageUrl('AdminDashboard')
-          : createPageUrl('Dashboard');
-      } else {
-        window.location.href = createPageUrl('CompleteProfile');
-      }
+      redirectAfterLogin(result.user);
     } catch (err) {
       toast.error(err?.error || 'Login failed');
     } finally {
@@ -49,7 +77,7 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
+        {/* LOGO */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4 shadow-2xl">
             <Clock className="w-9 h-9 text-indigo-600" />
@@ -58,10 +86,31 @@ export default function Login() {
           <p className="text-indigo-100 mt-1">Welcome back</p>
         </div>
 
-        {/* Card */}
+        {/* CARD */}
         <Card className="p-8 bg-white/95 backdrop-blur-lg shadow-2xl">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign in</h2>
 
+          {/* GOOGLE LOGIN BUTTON */}
+          <div className="mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error('Google login failed')}
+            />
+          </div>
+
+          {/* DIVIDER */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-500">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
+          {/* EMAIL LOGIN FORM */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="email">Email</Label>
@@ -111,10 +160,13 @@ export default function Login() {
             </Button>
           </form>
 
+          {/* FOOTER */}
           <div className="text-center mt-6 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <a href={createPageUrl('Register')} className="text-indigo-600 font-semibold hover:underline">Sign up</a>
+              <a href={createPageUrl('Register')} className="text-indigo-600 font-semibold hover:underline">
+                Sign up
+              </a>
             </p>
           </div>
         </Card>

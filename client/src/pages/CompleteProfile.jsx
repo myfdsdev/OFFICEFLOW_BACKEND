@@ -10,17 +10,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { UserCircle, Upload, CheckCircle2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { toast } from "react-hot-toast";
 
+// Match MyProfile departments
 const departments = [
-  "Engineering",
-  "Sales",
-  "Marketing",
-  "HR",
-  "Finance",
-  "Operations",
-  "IT",
-  "Customer Support",
-  "Other"
+  "Video Editor",
+  "Graphic Designer",
+  "Web Designer",
+  "Content Writer",
+  "Developer"
 ];
 
 export default function CompleteProfile() {
@@ -37,33 +35,65 @@ export default function CompleteProfile() {
     base44.auth.me().then((userData) => {
       setUser(userData);
       setFormData({
-        mobile_number: userData.mobile_number || '',
-        employee_id: userData.employee_id || '',
-        department: userData.department || '',
-        profile_photo: userData.profile_photo || '',
+        mobile_number: userData?.mobile_number || '',
+        employee_id: userData?.employee_id || '',
+        department: userData?.department || '',
+        profile_photo: userData?.profile_photo || '',
       });
-    });
+    }).catch(() => {});
   }, []);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data) => base44.auth.updateMe(data),
     onSuccess: () => {
-      window.location.href = createPageUrl('Dashboard');
+      toast.success('Profile saved!');
+      setTimeout(() => {
+        window.location.href = createPageUrl('Dashboard');
+      }, 500);
+    },
+    onError: (error) => {
+      console.error('[CompleteProfile] Save failed:', error);
+      toast.error('Failed: ' + (error?.error || error?.message || 'Unknown error'));
     },
   });
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image too large (max 5MB)');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setFormData({ ...formData, profile_photo: file_url });
+      const result = await base44.integrations.Core.UploadFile({ file });
+      console.log('[CompleteProfile] Upload result:', result);
+
+      // Safely extract URL from response shape
+      const fileUrl = result?.file_url || result?.url || result?.secure_url;
+
+      if (!fileUrl) {
+        console.error('[CompleteProfile] No URL in upload response:', result);
+        toast.error('Upload returned no URL');
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, profile_photo: fileUrl }));
+      toast.success('Photo uploaded — click Save to apply');
     } catch (error) {
-      alert('Failed to upload image');
+      console.error('[CompleteProfile] Upload error:', error);
+      toast.error('Failed to upload: ' + (error?.error || error?.message || 'Unknown error'));
     } finally {
       setUploading(false);
+      // Reset input so same file can be picked again
+      e.target.value = '';
     }
   };
 
@@ -71,12 +101,17 @@ export default function CompleteProfile() {
     e.preventDefault();
 
     if (!formData.mobile_number || !formData.employee_id) {
-      alert('Please fill in mobile number and employee ID');
+      toast.error('Please fill in mobile number and employee ID');
+      return;
+    }
+
+    if (formData.mobile_number.length < 10) {
+      toast.error('Mobile number too short (min 10 digits)');
       return;
     }
 
     if (!formData.department) {
-      alert('Please select your department');
+      toast.error('Please select your department');
       return;
     }
 
@@ -84,6 +119,7 @@ export default function CompleteProfile() {
   };
 
   const isProfileComplete = user?.mobile_number && user?.employee_id && user?.department;
+
   const getInitials = (name) => {
     if (!name) return "?";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -125,15 +161,22 @@ export default function CompleteProfile() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Profile Photo */}
               <div className="flex flex-col items-center gap-4">
-                <Avatar className="w-24 h-24 border-4 border-indigo-100">
-                  {formData.profile_photo ? (
-                    <AvatarImage src={formData.profile_photo} alt={user.full_name} />
-                  ) : (
-                    <AvatarFallback className="bg-indigo-100 text-indigo-600 text-2xl font-semibold">
-                      {getInitials(user.full_name)}
-                    </AvatarFallback>
+                <div className="relative">
+                  <Avatar className="w-24 h-24 border-4 border-indigo-100">
+                    {formData.profile_photo ? (
+                      <AvatarImage src={formData.profile_photo} alt={user.full_name} />
+                    ) : (
+                      <AvatarFallback className="bg-indigo-100 text-indigo-600 text-2xl font-semibold">
+                        {getInitials(user.full_name)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
                   )}
-                </Avatar>
+                </div>
                 <div>
                   <input
                     type="file"
@@ -142,18 +185,17 @@ export default function CompleteProfile() {
                     className="hidden"
                     id="photo-upload"
                   />
-                  <label htmlFor="photo-upload">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={uploading}
-                      onClick={() => document.getElementById('photo-upload').click()}
-                      className="cursor-pointer"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {uploading ? 'Uploading...' : 'Upload Photo'}
-                    </Button>
-                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={uploading}
+                    onClick={() => document.getElementById('photo-upload').click()}
+                    className="cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? 'Uploading...' : formData.profile_photo ? 'Change Photo' : 'Upload Photo'}
+                  </Button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">JPG, PNG, max 5MB</p>
                 </div>
               </div>
 
@@ -226,7 +268,7 @@ export default function CompleteProfile() {
 
               <Button
                 type="submit"
-                disabled={updateProfileMutation.isPending}
+                disabled={updateProfileMutation.isPending || uploading}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-base py-6"
               >
                 <CheckCircle2 className="w-5 h-5 mr-2" />

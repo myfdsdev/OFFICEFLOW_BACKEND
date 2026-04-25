@@ -1,4 +1,9 @@
 import axios from 'axios';
+import {
+  connectSocket,
+  subscribeToEntity,
+  disconnectSocket,
+} from './socketClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -76,7 +81,6 @@ const normalizeList = (data) => {
   );
 };
 
-// Strip trailing Z from ISO dates so frontend's `+ 'Z'` pattern works
 const stripZ = (dateStr) => {
   if (!dateStr) return dateStr;
   if (typeof dateStr !== 'string') {
@@ -97,7 +101,6 @@ const normalizeItem = (item) => {
 
 const normalizeItems = (items) => items.map(normalizeItem);
 
-// Translate Base44 field names to Mongo
 const translateField = (s) => {
   if (typeof s !== 'string') return s;
   return s
@@ -110,10 +113,8 @@ const createEntity = (entityName) => {
   const route = ENTITY_ROUTES[entityName];
   if (!route) throw new Error(`Unknown entity: ${entityName}`);
 
-  // Translate frontend field names to MongoDB
   const translateFilter = (filterObj) => {
     const translated = { ...filterObj };
-    // `id` in frontend = `_id` in Mongo
     if (translated.id) {
       translated._id = translated.id;
       delete translated.id;
@@ -143,14 +144,11 @@ const createEntity = (entityName) => {
       return normalizeItem(res.data.user || res.data);
     },
     update: async (id, data) => {
-      // Special case: Notification.update({ is_read: true }) → /read endpoint
       if (entityName === 'Notification' && data.is_read === true) {
         const res = await api.put(`${route}/${id}/read`, {});
         return normalizeItem(res.data);
       }
-      // Special case: Message.update with is_read → mark-read endpoint
       if (entityName === 'Message' && data.is_read === true) {
-        // Fallback: use generic PUT (backend has edit endpoint)
         const res = await api.put(`${route}/${id}`, data);
         return normalizeItem(res.data);
       }
@@ -161,16 +159,15 @@ const createEntity = (entityName) => {
       const res = await api.delete(`${route}/${id}`);
       return res.data;
     },
-    subscribe: (callback) => {
-      return () => {};
-    },
+    // REAL-TIME: subscribe to socket events for this entity
+    // Returns unsubscribe function
+    subscribe: (callback) => subscribeToEntity(entityName, callback),
   };
 };
 
 // ========== AUTH ==========
 const auth = {
   me: async () => {
-    // Skip API call if no token — user is not logged in
     const token = getToken();
     if (!token) {
       const err = new Error('Not authenticated');
@@ -178,6 +175,8 @@ const auth = {
       throw err;
     }
     const res = await api.get('/auth/me');
+    // Connect socket once we're logged in
+    connectSocket();
     return normalizeItem(res.data);
   },
   updateMe: async (data) => {
@@ -186,18 +185,25 @@ const auth = {
   },
   login: async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    if (res.data.token) setToken(res.data.token);
+    if (res.data.token) {
+      setToken(res.data.token);
+      connectSocket();
+    }
     return res.data;
   },
   register: async (userData) => {
     const res = await api.post('/auth/register', userData);
-    if (res.data.token) setToken(res.data.token);
+    if (res.data.token) {
+      setToken(res.data.token);
+      connectSocket();
+    }
     return res.data;
   },
   logout: async (redirectUrl) => {
     try {
       await api.post('/auth/logout');
     } catch {}
+    disconnectSocket();
     setToken(null);
     window.location.href = redirectUrl || '/Welcome';
   },

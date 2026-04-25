@@ -1,22 +1,25 @@
-import Message from '../models/Message.js';
-import MessageReminder from '../models/MessageReminder.js';
-import Notification from '../models/Notification.js';
-import User from '../models/User.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
-import { getIO } from '../sockets/index.js';
+import Message from "../models/Message.js";
+import MessageReminder from "../models/MessageReminder.js";
+import Notification from "../models/Notification.js";
+import User from "../models/User.js";
+import { asyncHandler } from "../middleware/errorHandler.js";
+import { getIO } from "../sockets/index.js";
 
 // @desc    Send direct message
 // @route   POST /api/messages
 // @access  Private
 export const sendMessage = asyncHandler(async (req, res) => {
-  const { receiver_id, message_text, attachment_url, attachment_type } = req.body;
+  const { receiver_id, message_text, attachment_url, attachment_type } =
+    req.body;
 
   if (!receiver_id || !message_text) {
-    return res.status(400).json({ error: 'receiver_id and message_text required' });
+    return res
+      .status(400)
+      .json({ error: "receiver_id and message_text required" });
   }
 
   const receiver = await User.findById(receiver_id);
-  if (!receiver) return res.status(404).json({ error: 'Receiver not found' });
+  if (!receiver) return res.status(404).json({ error: "Receiver not found" });
 
   const message = await Message.create({
     sender_id: req.user._id,
@@ -26,15 +29,19 @@ export const sendMessage = asyncHandler(async (req, res) => {
     receiver_email: receiver.email,
     receiver_name: receiver.full_name,
     message_text,
-    attachment_url: attachment_url || '',
-    attachment_type: attachment_type || '',
+    attachment_url: attachment_url || "",
+    attachment_type: attachment_type || "",
   });
 
   // Real-time push
   try {
-    getIO().to(`user_${receiver._id}`).emit('new_message', message);
+    const io = getIO();
+    if (io) {
+      io.to(`user_${receiver._id}`).emit("new_message", message);
+      io.to(`user_${req.user._id}`).emit("new_message", message);
+    }
   } catch (err) {
-    console.error('Socket emit failed:', err.message);
+    console.error("Socket emit failed:", err.message);
   }
 
   // Notification for receiver
@@ -42,7 +49,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     user_email: receiver.email,
     title: `Message from ${req.user.full_name}`,
     message: message_text.slice(0, 80),
-    type: 'new_message',
+    type: "new_message",
     related_id: message._id.toString(),
   });
 
@@ -67,7 +74,7 @@ export const getConversation = asyncHandler(async (req, res) => {
   if (before) filter.createdAt = { $lt: new Date(before) };
 
   const messages = await Message.find(filter)
-    .sort('-createdAt')
+    .sort("-createdAt")
     .limit(parseInt(limit));
 
   // Return oldest first (for chat UI)
@@ -85,7 +92,7 @@ export const getMyConversations = asyncHandler(async (req, res) => {
     is_deleted: false,
     $or: [{ sender_id: userId }, { receiver_id: userId }],
   })
-    .sort('-createdAt')
+    .sort("-createdAt")
     .limit(500);
 
   // Build conversation map (latest message per partner)
@@ -123,7 +130,7 @@ export const getMyConversations = asyncHandler(async (req, res) => {
         is_deleted: false,
       });
       return { ...c, unread_count: unread };
-    })
+    }),
   );
 
   res.json(result);
@@ -138,7 +145,7 @@ export const filterMessages = asyncHandler(async (req, res) => {
   delete filter.limit;
 
   const messages = await Message.find(filter)
-    .sort(req.query.sort || '-createdAt')
+    .sort(req.query.sort || "-createdAt")
     .limit(parseInt(req.query.limit) || 100);
 
   res.json(messages);
@@ -154,9 +161,9 @@ export const markConversationRead = asyncHandler(async (req, res) => {
       receiver_id: req.user._id,
       is_read: false,
     },
-    { is_read: true }
+    { is_read: true },
   );
-  res.json({ message: 'Marked as read', updated: result.modifiedCount });
+  res.json({ message: "Marked as read", updated: result.modifiedCount });
 });
 
 // @desc    Edit message
@@ -165,10 +172,10 @@ export const markConversationRead = asyncHandler(async (req, res) => {
 export const editMessage = asyncHandler(async (req, res) => {
   const { message_text } = req.body;
   const message = await Message.findById(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (!message) return res.status(404).json({ error: "Message not found" });
 
   if (message.sender_id.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ error: 'Only sender can edit' });
+    return res.status(403).json({ error: "Only sender can edit" });
   }
 
   message.message_text = message_text;
@@ -177,7 +184,7 @@ export const editMessage = asyncHandler(async (req, res) => {
   await message.save();
 
   try {
-    getIO().to(`user_${message.receiver_id}`).emit('message_edited', message);
+    getIO().to(`user_${message.receiver_id}`).emit("message_edited", message);
   } catch (err) {}
 
   res.json(message);
@@ -188,21 +195,23 @@ export const editMessage = asyncHandler(async (req, res) => {
 // @access  Private (sender only)
 export const deleteMessage = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (!message) return res.status(404).json({ error: "Message not found" });
 
   if (message.sender_id.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ error: 'Only sender can delete' });
+    return res.status(403).json({ error: "Only sender can delete" });
   }
 
   message.is_deleted = true;
-  message.message_text = '[deleted]';
+  message.message_text = "[deleted]";
   await message.save();
 
   try {
-    getIO().to(`user_${message.receiver_id}`).emit('message_deleted', { id: message._id });
+    getIO()
+      .to(`user_${message.receiver_id}`)
+      .emit("message_deleted", { id: message._id });
   } catch (err) {}
 
-  res.json({ message: 'Message deleted' });
+  res.json({ message: "Message deleted" });
 });
 
 // @desc    Pin/unpin message
@@ -210,12 +219,14 @@ export const deleteMessage = asyncHandler(async (req, res) => {
 // @access  Private
 export const togglePin = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (!message) return res.status(404).json({ error: "Message not found" });
 
   // Sender or receiver can pin
-  const canPin = [message.sender_id.toString(), message.receiver_id.toString()]
-    .includes(req.user._id.toString());
-  if (!canPin) return res.status(403).json({ error: 'Access denied' });
+  const canPin = [
+    message.sender_id.toString(),
+    message.receiver_id.toString(),
+  ].includes(req.user._id.toString());
+  if (!canPin) return res.status(403).json({ error: "Access denied" });
 
   message.is_pinned = !message.is_pinned;
   await message.save();
@@ -227,13 +238,15 @@ export const togglePin = asyncHandler(async (req, res) => {
 // @access  Private
 export const toggleMute = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (!message) return res.status(404).json({ error: "Message not found" });
 
   const userId = req.user._id.toString();
   const mutedBy = (message.muted_by || []).map((id) => id.toString());
 
   if (mutedBy.includes(userId)) {
-    message.muted_by = message.muted_by.filter((id) => id.toString() !== userId);
+    message.muted_by = message.muted_by.filter(
+      (id) => id.toString() !== userId,
+    );
   } else {
     message.muted_by.push(req.user._id);
   }
@@ -248,11 +261,11 @@ export const toggleMute = asyncHandler(async (req, res) => {
 export const createMessageReminder = asyncHandler(async (req, res) => {
   const { reminder_time } = req.body;
   if (!reminder_time) {
-    return res.status(400).json({ error: 'reminder_time required' });
+    return res.status(400).json({ error: "reminder_time required" });
   }
 
   const message = await Message.findById(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
+  if (!message) return res.status(404).json({ error: "Message not found" });
 
   const reminder = await MessageReminder.create({
     user_id: req.user._id,
@@ -271,7 +284,9 @@ export const broadcastMessage = asyncHandler(async (req, res) => {
   const { user_ids, message_text } = req.body;
 
   if (!Array.isArray(user_ids) || !user_ids.length || !message_text) {
-    return res.status(400).json({ error: 'user_ids array and message_text required' });
+    return res
+      .status(400)
+      .json({ error: "user_ids array and message_text required" });
   }
 
   const users = await User.find({ _id: { $in: user_ids } });
@@ -290,7 +305,7 @@ export const broadcastMessage = asyncHandler(async (req, res) => {
     messages.push(msg);
 
     try {
-      getIO().to(`user_${receiver._id}`).emit('new_message', msg);
+      getIO().to(`user_${receiver._id}`).emit("new_message", msg);
     } catch (err) {}
   }
 

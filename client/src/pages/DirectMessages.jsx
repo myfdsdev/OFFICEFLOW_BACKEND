@@ -59,13 +59,11 @@ export default function DirectMessages() {
             type: 'new_message'
           });
           
-          // Mark all message notifications as read immediately
-          const updatePromises = notifications.map(notif => 
+          const updatePromises = (notifications || []).map(notif => 
             base44.entities.Notification.update(notif.id, { is_read: true })
           );
           await Promise.all(updatePromises);
           
-          // Invalidate notifications query to update bell icon
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
         } catch (error) {
           console.error('Failed to mark notifications as read:', error);
@@ -76,22 +74,31 @@ export default function DirectMessages() {
     initUser();
   }, [queryClient]);
 
-  // Fetch messages for the selected conversation
+  // ===========================================
+  // FETCH MESSAGES (FIXED — uses filter not list)
+  // ===========================================
   const { data: allConversationMessages = [], isLoading: loadingMessages, error: messagesError, refetch } = useQuery({
     queryKey: ['messages', user?.id, selectedUser?.id],
     queryFn: async () => {
       if (!user || !selectedUser) return [];
       
       try {
-        const allMessages = await base44.entities.Message.list('-created_date', 1000);
-        
-        const conversationMessages = allMessages.filter(m => 
-          (m.sender_id === user.id && m.receiver_id === selectedUser.id) ||
-          (m.sender_id === selectedUser.id && m.receiver_id === user.id)
-        );
-        
-        return conversationMessages.sort((a, b) => 
-          new Date(a.created_date) - new Date(b.created_date)
+        // Fetch messages where I am sender OR receiver to selectedUser
+        const [sentMessages, receivedMessages] = await Promise.all([
+          base44.entities.Message.filter({
+            sender_id: user.id,
+            receiver_id: selectedUser.id,
+          }, '-createdAt', 1000),
+          base44.entities.Message.filter({
+            sender_id: selectedUser.id,
+            receiver_id: user.id,
+          }, '-createdAt', 1000),
+        ]);
+
+        // Combine + sort chronologically
+        const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+        return allMessages.sort((a, b) => 
+          new Date(a.created_date || a.createdAt) - new Date(b.created_date || b.createdAt)
         );
       } catch (error) {
         console.error('Failed to fetch messages:', error);
@@ -104,30 +111,48 @@ export default function DirectMessages() {
   // Filter messages based on search
   const messages = searchQuery
     ? allConversationMessages.filter(msg => 
-        msg.message_text.toLowerCase().includes(searchQuery.toLowerCase())
+        msg.message_text && msg.message_text.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : allConversationMessages;
 
-  // Real-time message subscription
+  // ===========================================
+  // REAL-TIME MESSAGE SUBSCRIPTION (LIVE UPDATES)
+  // ===========================================
   useEffect(() => {
     if (!user) return;
 
     const unsubscribe = base44.entities.Message.subscribe((event) => {
-      if (event.type === 'create') {
-        const msg = event.data;
-        if (msg.sender_id === user.id || msg.receiver_id === user.id) {
-          queryClient.invalidateQueries({ queryKey: ['messages'] });
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-          
-          // Mark as read if from selected user
-          if (msg.receiver_id === user.id && msg.sender_id === selectedUser?.id && !msg.is_read) {
-            base44.entities.Message.update(msg.id, { is_read: true }).catch(console.error);
-          }
+      if (event.type !== 'create' || !event.data) return;
+      
+      const msg = event.data;
+      const myId = String(user.id);
+      const senderId = String(msg.sender_id);
+      const receiverId = String(msg.receiver_id);
+      
+      // Only process messages involving me
+      if (senderId !== myId && receiverId !== myId) return;
+      
+      // Refresh ALL message queries (including current chat)
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['unreadCounts'] });
+      
+      // Auto-mark as read if from currently open chat
+      if (
+        selectedUser &&
+        receiverId === myId &&
+        senderId === String(selectedUser.id) &&
+        !msg.is_read
+      ) {
+        const msgId = msg.id || msg._id;
+        if (msgId) {
+          base44.entities.Message.update(msgId, { is_read: true })
+            .catch(console.error);
         }
       }
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, [user, selectedUser, queryClient]);
 
   // Auto-scroll to bottom
@@ -135,6 +160,9 @@ export default function DirectMessages() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ===========================================
+  // SEND MESSAGE WITH OPTIMISTIC UPDATE
+  // ===========================================
   const sendMessageMutation = useMutation({
     mutationFn: async (text) => {
       const newMessage = await base44.entities.Message.create({
@@ -151,22 +179,50 @@ export default function DirectMessages() {
         is_deleted: false,
         muted_by: [],
       });
-
-      // Only create notification for receiver if not muted
-      // Notification will be automatically marked as read if they're on DirectMessages page
-      await base44.entities.Notification.create({
-        user_email: selectedUser.email,
-        title: 'New Message',
-        message: `${user.full_name}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`,
-        type: 'new_message',
-        is_read: false,
-        related_id: newMessage.id,
-      });
-
       return newMessage;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
+    // 🚀 OPTIMISTIC: Show message INSTANTLY in UI before server confirms
+    onMutate: async (text) => {
+      const queryKey = ['messages', user?.id, selectedUser?.id];
+      await queryClient.cancelQueries({ queryKey });
+
+      const previousMessages = queryClient.getQueryData(queryKey) || [];
+
+      const optimisticMessage = {
+        id: `temp-${Date.now()}`,
+        sender_id: user.id,
+        sender_email: user.email,
+        sender_name: user.full_name,
+        receiver_id: selectedUser.id,
+        receiver_email: selectedUser.email,
+        receiver_name: selectedUser.full_name,
+        message_text: text,
+        created_date: new Date().toISOString().replace('Z', ''),
+        createdAt: new Date().toISOString(),
+        is_read: false,
+        is_edited: false,
+        is_pinned: false,
+        is_deleted: false,
+        muted_by: [],
+        _optimistic: true,
+      };
+
+      queryClient.setQueryData(queryKey, [...previousMessages, optimisticMessage]);
+      return { previousMessages };
+    },
+    onError: (err, variables, context) => {
+      // Rollback if failed
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ['messages', user?.id, selectedUser?.id],
+          context.previousMessages
+        );
+      }
+      toast.error('Failed to send message');
+    },
+    onSettled: () => {
+      // Always refetch real data after settle
+      queryClient.invalidateQueries({ queryKey: ['messages', user?.id, selectedUser?.id] });
     },
   });
 
@@ -198,6 +254,7 @@ export default function DirectMessages() {
 
   const handleToggleMute = async (messageId) => {
     const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
     const mutedBy = msg.muted_by || [];
     const isMuted = mutedBy.includes(user.id);
     
@@ -248,29 +305,27 @@ export default function DirectMessages() {
         const unreadMessages = messages.filter(m => 
           m.receiver_id === user.id && 
           m.sender_id === selectedUser.id && 
-          !m.is_read
+          !m.is_read &&
+          !m._optimistic
         );
 
-        // Mark messages as read
         const updatePromises = unreadMessages.map(msg =>
           base44.entities.Message.update(msg.id, { is_read: true })
         );
         await Promise.all(updatePromises);
 
-        // Also mark related message notifications as read
         const messageNotifications = await base44.entities.Notification.filter({
           user_email: user.email,
           type: 'new_message',
           is_read: false,
         });
 
-        const notifUpdatePromises = messageNotifications
-          .filter(notif => notif.message.includes(selectedUser.full_name))
+        const notifUpdatePromises = (messageNotifications || [])
+          .filter(notif => notif.message && notif.message.includes(selectedUser.full_name))
           .map(notif => base44.entities.Notification.update(notif.id, { is_read: true }));
         
         await Promise.all(notifUpdatePromises);
         
-        // Update notification count
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
       } catch (error) {
         console.error('Failed to mark messages as read:', error);
@@ -281,8 +336,21 @@ export default function DirectMessages() {
   }, [user, selectedUser, messages, queryClient]);
 
   const handleSendMessage = (text) => {
-    if (text && !sendMessageMutation.isPending) {
+    if (text && text.trim() && !sendMessageMutation.isPending) {
       sendMessageMutation.mutate(text);
+    }
+  };
+
+  // Safe date formatter
+  const formatMessageTime = (msg) => {
+    try {
+      const dateStr = msg.created_date || msg.createdAt;
+      if (!dateStr) return '';
+      // Handle both formats (with and without Z)
+      const cleanDate = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+      return format(toZonedTime(new Date(cleanDate), 'Asia/Kolkata'), 'MMM d, h:mm a');
+    } catch (e) {
+      return '';
     }
   };
 
@@ -332,8 +400,8 @@ export default function DirectMessages() {
             />
             <DirectMessagesList 
               currentUser={user} 
-              onUserSelect={(user) => {
-                setSelectedUser(user);
+              onUserSelect={(u) => {
+                setSelectedUser(u);
                 setSelectedGroup(null);
               }}
             />
@@ -447,7 +515,7 @@ export default function DirectMessages() {
                           <div className="space-y-2">
                             {messages.filter(m => m.is_pinned && !m.is_deleted).map(msg => (
                               <div key={msg.id} className="text-xs bg-white rounded p-2 text-gray-700">
-                                {msg.message_text.substring(0, 50)}...
+                                {msg.message_text && msg.message_text.substring(0, 50)}...
                               </div>
                             ))}
                           </div>
@@ -456,9 +524,10 @@ export default function DirectMessages() {
 
                       {/* Regular Messages */}
                       {messages.map((msg) => {
-                        const isSender = msg.sender_id === user.id;
-                        const isBroadcast = msg.message_text.startsWith('📢 BROADCAST:');
+                        const isSender = String(msg.sender_id) === String(user.id);
+                        const isBroadcast = msg.message_text && msg.message_text.startsWith('📢 BROADCAST:');
                         const isDeleted = msg.is_deleted && (msg.deleted_for_everyone || msg.deleted_by === user.id);
+                        const isOptimistic = msg._optimistic;
 
                         return (
                           <motion.div
@@ -478,17 +547,20 @@ export default function DirectMessages() {
                                       : isSender 
                                         ? 'bg-indigo-600 text-white' 
                                         : 'bg-white text-gray-900'
-                                } ${msg.is_pinned ? 'ring-2 ring-amber-300' : ''}`}>
+                                } ${msg.is_pinned ? 'ring-2 ring-amber-300' : ''} ${isOptimistic ? 'opacity-70' : ''}`}>
                                   <div className="flex items-start gap-2">
                                     <p className="text-sm break-words flex-1">
                                       {msg.message_text}
                                       {msg.is_edited && !isDeleted && (
                                         <span className="text-xs opacity-70 ml-2">(edited)</span>
                                       )}
+                                      {isOptimistic && (
+                                        <span className="text-xs opacity-70 ml-2">(sending...)</span>
+                                      )}
                                     </p>
                                   </div>
                                 </div>
-                                {!isDeleted && (
+                                {!isDeleted && !isOptimistic && (
                                   <MessageContextMenu
                                     message={msg}
                                     currentUser={user}
@@ -503,7 +575,7 @@ export default function DirectMessages() {
                                 )}
                               </div>
                               <p className={`text-xs text-gray-400 mt-1 ${isSender ? 'text-right' : 'text-left'}`}>
-                                {format(toZonedTime(new Date(msg.created_date + 'Z'), 'Asia/Kolkata'), 'MMM d, h:mm a')}
+                                {formatMessageTime(msg)}
                               </p>
                             </div>
                           </motion.div>

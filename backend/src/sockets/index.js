@@ -5,11 +5,23 @@ import User from '../models/User.js';
 let io;
 
 export const initSocket = (httpServer) => {
+  // Support multiple origins (same pattern as server.js CORS)
+  const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((url) => url.trim());
+
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        console.warn(`[Socket CORS] Blocked origin: ${origin}`);
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
+      methods: ['GET', 'POST'],
     },
+    transports: ['websocket', 'polling'],
   });
 
   // Middleware: verify JWT on socket connection
@@ -29,36 +41,31 @@ export const initSocket = (httpServer) => {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     console.log(`🔌 User connected: ${socket.user.email} (${socket.id})`);
 
-    // Join personal room (for direct messages)
+    // Join personal room
     socket.join(`user_${socket.user._id}`);
 
-    // Update online status
-    User.findByIdAndUpdate(socket.user._id, {
+    // Update online status + broadcast to everyone
+    await User.findByIdAndUpdate(socket.user._id, {
       is_online: true,
       last_active: new Date(),
-    }).exec();
-
-    // === DIRECT MESSAGE ===
-    socket.on('send_message', (data) => {
-      // Send to receiver's personal room
-      io.to(`user_${data.receiver_id}`).emit('new_message', data);
     });
 
-    // === GROUP MESSAGE ===
+    io.emit('user_status_changed', {
+      _id: socket.user._id,
+      email: socket.user.email,
+      is_online: true,
+    });
+
+    // === GROUP ROOMS ===
     socket.on('join_group', (groupId) => {
       socket.join(`group_${groupId}`);
-      console.log(`${socket.user.email} joined group ${groupId}`);
     });
 
     socket.on('leave_group', (groupId) => {
       socket.leave(`group_${groupId}`);
-    });
-
-    socket.on('send_group_message', (data) => {
-      io.to(`group_${data.group_id}`).emit('new_group_message', data);
     });
 
     // === TYPING INDICATOR ===
@@ -82,14 +89,58 @@ export const initSocket = (httpServer) => {
         is_online: false,
         last_active: new Date(),
       });
+
+      io.emit('user_status_changed', {
+        _id: socket.user._id,
+        email: socket.user.email,
+        is_online: false,
+      });
     });
   });
 
   return io;
 };
 
-// Helper: get io instance anywhere in app
+// Get io instance anywhere in app
 export const getIO = () => {
-  if (!io) throw new Error('Socket.io not initialized');
+  if (!io) {
+    console.warn('Socket.io not initialized yet');
+    return null;
+  }
   return io;
+};
+
+// ==========================================
+// Helper functions for controllers to emit events
+// ==========================================
+
+// Emit new direct message to receiver
+export const emitNewMessage = (message) => {
+  const io = getIO();
+  if (!io) return;
+  io.to(`user_${message.receiver_id}`).emit('new_message', message);
+  // Also notify sender's other devices
+  io.to(`user_${message.sender_id}`).emit('new_message', message);
+};
+
+// Emit new group message to all group members
+export const emitNewGroupMessage = (message) => {
+  const io = getIO();
+  if (!io) return;
+  io.to(`group_${message.group_id}`).emit('new_group_message', message);
+};
+
+// Emit notification to a specific user
+export const emitNotification = (userEmail, notification) => {
+  const io = getIO();
+  if (!io) return;
+  // Find user by email to get their socket room
+  User.findOne({ email: userEmail })
+    .select('_id')
+    .then((user) => {
+      if (user) {
+        io.to(`user_${user._id}`).emit('new_notification', notification);
+      }
+    })
+    .catch(() => {});
 };

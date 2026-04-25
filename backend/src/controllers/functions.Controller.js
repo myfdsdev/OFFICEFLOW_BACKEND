@@ -393,5 +393,19 @@ export const getUsersForMessaging = asyncHandler(async (req, res) => {
     .select('_id email full_name profile_photo department role is_online last_active')
     .sort('full_name');
 
-  res.json(users);
+  const normalizedUsers = users.map((u) => ({
+    id: u._id,
+    _id: u._id,
+    email: u.email,
+    full_name: u.full_name,
+    profile_photo: u.profile_photo,
+    department: u.department,
+    role: u.role,
+    is_online: u.is_online,
+    last_active: u.last_active,
+  }));
+
+  res.json({
+    data: { users: normalizedUsers },
+  });
 });

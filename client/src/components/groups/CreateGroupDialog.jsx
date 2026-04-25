@@ -1,30 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Users, Loader2 } from "lucide-react";
 
 export default function CreateGroupDialog({ open, onClose, currentUser }) {
-  const [groupName, setGroupName] = useState('');
-  const [description, setDescription] = useState('');
-  const [groupType, setGroupType] = useState('attendance');
+  const [groupName, setGroupName] = useState("");
+  const [description, setDescription] = useState("");
+  const [groupType, setGroupType] = useState("attendance");
   const [selectedMembers, setSelectedMembers] = useState([]);
   const queryClient = useQueryClient();
 
-  // Fetch all users
+  // Fetch all users — handles multiple response shapes safely
   const { data: users = [] } = useQuery({
-    queryKey: ['users-for-group'],
+    queryKey: ["users-for-group"],
     queryFn: async () => {
-      const response = await base44.functions.invoke('getUsersForMessaging', {});
-      return response.data?.users || [];
+      const response = await base44.functions.invoke(
+        "getUsersForMessaging",
+        {},
+      );
+      const list =
+        response?.data?.users ||
+        response?.users ||
+        (Array.isArray(response) ? response : []);
+      return list.map((u) => ({ ...u, id: u.id || u._id }));
     },
     enabled: open,
   });
@@ -32,7 +51,7 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
   // Auto-select all users when dialog opens
   useEffect(() => {
     if (open && users.length > 0 && selectedMembers.length === 0) {
-      setSelectedMembers(users.map(u => u.id));
+      setSelectedMembers(users.map((u) => u.id));
     }
   }, [open, users]);
 
@@ -54,25 +73,26 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
         user_id: currentUser.id,
         user_email: currentUser.email,
         user_name: currentUser.full_name,
-        role: 'admin',
+        role: "admin",
         added_by: currentUser.id,
         added_by_name: currentUser.full_name,
       });
 
       // Add selected members and send notifications
       const memberPromises = selectedMembers
-        .filter(userId => userId !== currentUser.id) // Don't add self again
+        .filter((userId) => userId !== currentUser.id)
         .map(async (userId) => {
-          const user = users.find(u => u.id === userId);
-          
+          const user = users.find((u) => u.id === userId);
+          if (!user) return;
+
           // Check if user already exists in group
           const existingMembers = await base44.entities.GroupMember.filter({
             group_id: group.id,
             user_id: user.id,
           });
-          
+
           if (existingMembers.length > 0) {
-            throw new Error(`${user.full_name} is already a member of this group`);
+            return; // skip silently instead of throwing
           }
 
           // Create group member
@@ -82,7 +102,7 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
             user_id: user.id,
             user_email: user.email,
             user_name: user.full_name,
-            role: 'member',
+            role: "member",
             added_by: currentUser.id,
             added_by_name: currentUser.full_name,
           });
@@ -91,30 +111,30 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
           await base44.entities.Notification.create({
             user_email: user.email,
             user_id: user.id,
-            title: 'Added to Group',
+            title: "Added to Group",
             message: `You have been added to the group: ${groupName}`,
-            type: 'group_added',
+            type: "group_added",
             is_read: false,
             related_id: group.id,
           });
         });
-      
+
       await Promise.all(memberPromises);
 
       return group;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['groups'] });
-      queryClient.invalidateQueries({ queryKey: ['all-group-members'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      setGroupName('');
-      setDescription('');
-      setGroupType('attendance');
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["all-group-members"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      setGroupName("");
+      setDescription("");
+      setGroupType("attendance");
       setSelectedMembers([]);
       onClose();
     },
     onError: (error) => {
-      alert(`Failed to create group: ${error.message}`);
+      alert(`Failed to create group: ${error?.error || error?.message || "Unknown error"}`);
     },
   });
 
@@ -126,16 +146,21 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
   };
 
   const toggleMember = (userId) => {
-    setSelectedMembers(prev =>
+    setSelectedMembers((prev) =>
       prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
     );
   };
 
   const getInitials = (name) => {
     if (!name) return "?";
-    return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -189,33 +214,46 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
           <div className="space-y-3">
             <Label>Select Members</Label>
             <div className="border rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
-              {users.map(user => (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg"
-                >
-                  <Checkbox
-                    checked={selectedMembers.includes(user.id)}
-                    onCheckedChange={() => toggleMember(user.id)}
-                  />
-                  <Avatar className="w-8 h-8 bg-indigo-100 text-indigo-600">
-                    {user.profile_photo ? (
-                      <AvatarImage src={user.profile_photo} alt={user.full_name} />
-                    ) : (
-                      <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
-                        {getInitials(user.full_name)}
-                      </AvatarFallback>
+              {users.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  No users available
+                </p>
+              ) : (
+                users.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg"
+                  >
+                    <Checkbox
+                      checked={selectedMembers.includes(user.id)}
+                      onCheckedChange={() => toggleMember(user.id)}
+                    />
+                    <Avatar className="w-8 h-8 bg-indigo-100 text-indigo-600">
+                      {user.profile_photo ? (
+                        <AvatarImage
+                          src={user.profile_photo}
+                          alt={user.full_name}
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.full_name}
+                      </p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
+                    {user.role === "admin" && (
+                      <Badge variant="outline" className="text-xs">
+                        Admin
+                      </Badge>
                     )}
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{user.full_name}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
-                  {user.role === 'admin' && (
-                    <Badge variant="outline" className="text-xs">Admin</Badge>
-                  )}
-                </div>
-              ))}
+                ))
+              )}
             </div>
             <p className="text-xs text-gray-500">
               {selectedMembers.length} member(s) selected
@@ -237,7 +275,7 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
                   Creating...
                 </>
               ) : (
-                'Create Group'
+                "Create Group"
               )}
             </Button>
           </DialogFooter>

@@ -15,9 +15,10 @@ const groupSchema = new mongoose.Schema({
   created_by_name: { type: String, required: true },
   group_type: {
     type: String,
-    enum: ['public', 'private', 'department'],
+    enum: ['public', 'private', 'department', 'attendance', 'project', 'custom'],
     default: 'public',
   },
+
   group_photo: { type: String, default: '' },
   is_archived: { type: Boolean, default: false },
 }, { timestamps: true });

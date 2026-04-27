@@ -58,7 +58,10 @@ export const register = asyncHandler(async (req, res) => {
     mobile_number: mobile_number || '',
     role,
   });
-
+  // ✅ ADD THIS LINE
+sendWelcomeEmail(user.email, user.full_name).catch((err) => {
+  console.error('Welcome email failed:', err.message);
+});
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
 

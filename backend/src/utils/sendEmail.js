@@ -1,4 +1,4 @@
-import transporter from '../config/email.js';
+import transporter from "../config/email.js";
 
 export const sendEmail = async ({ to, subject, html, text }) => {
   if (!transporter) {
@@ -8,16 +8,16 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.SMTP_FROM,
       to,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, ''),
+      text: text || html.replace(/<[^>]*>/g, ""),
     });
     console.log(`📧 Email sent to ${to}: ${info.messageId}`);
     return info;
   } catch (error) {
-    console.error('❌ Email send error:', error.message);
+    console.error("❌ Email send error:", error.message);
     throw error;
   }
 };
@@ -25,7 +25,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 export const sendWelcomeEmail = async (to, name) => {
   return sendEmail({
     to,
-    subject: 'Welcome to Workflow! 🎉',
+    subject: "Welcome to Workflow! 🎉",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #3B82F6;">Welcome, ${name}!</h1>
@@ -41,7 +41,7 @@ export const sendWelcomeEmail = async (to, name) => {
 export const sendPasswordResetEmail = async (to, resetLink) => {
   return sendEmail({
     to,
-    subject: 'Reset Your Password',
+    subject: "Reset Your Password",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h1>Password Reset Request</h1>
@@ -53,14 +53,21 @@ export const sendPasswordResetEmail = async (to, resetLink) => {
   });
 };
 
-export const sendLeaveApprovalEmail = async (to, name, leaveType, startDate, endDate, status) => {
-  const color = status === 'approved' ? '#10B981' : '#EF4444';
+export const sendLeaveApprovalEmail = async (
+  to,
+  name,
+  leaveType,
+  startDate,
+  endDate,
+  status,
+) => {
+  const color = status === "approved" ? "#10B981" : "#EF4444";
   return sendEmail({
     to,
-    subject: `Leave Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+    subject: `Leave Request ${status === "approved" ? "Approved" : "Rejected"}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: ${color};">Leave ${status === 'approved' ? 'Approved ✅' : 'Rejected ❌'}</h1>
+        <h1 style="color: ${color};">Leave ${status === "approved" ? "Approved ✅" : "Rejected ❌"}</h1>
         <p>Hi ${name},</p>
         <p>Your ${leaveType} leave request from <strong>${startDate}</strong> to <strong>${endDate}</strong> has been <strong>${status}</strong>.</p>
       </div>

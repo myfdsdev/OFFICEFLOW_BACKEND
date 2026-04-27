@@ -39,7 +39,9 @@ if (missingEnv.length > 0) {
 
   } catch (err) {
     console.error('❌ Email transporter setup failed:', err.message);
+
   }
 }
+
 console.log('SMTP USER:', process.env.SMTP_USER);
 export default transporter;

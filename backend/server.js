@@ -28,6 +28,7 @@ import messageReminderRoutes from "./src/routes/messageReminder.Routes.js";
 import attendanceSessionRoutes from "./src/routes/attendanceSession.Routes.js";
 import uploadRoutes from "./src/routes/upload.Routes.js";
 import functionsRoutes from "./src/routes/functions.Routes.js";
+import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
 // Load env FIRST
 dotenv.config();
 
@@ -129,6 +130,7 @@ app.get("/api/health", (req, res) => {
 // API ROUTES (we'll add these as we build)
 // ==========================================
 app.use("/api/auth", authRoutes);
+app.use("/api/app-settings", appSettingsRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);

@@ -1,173 +1,191 @@
-import React, { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
-import { getToken } from '@/api/apiClient';
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { motion } from "framer-motion";
-import { Clock, CheckCircle2, Calendar, TrendingUp, ArrowRight, Shield, Users } from "lucide-react";
-import { createPageUrl } from "@/utils";
-import OnboardingScreen from '../components/onboarding/OnboardingScreen';
+import React, { useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { Button } from '@/components/ui/button';
+import { Mail, Building2, CheckCircle2, Clock, Users, BarChart3 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { createPageUrl } from '@/utils';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function Welcome() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const navigate = useNavigate();
+  const loginInProgress = useRef(false);
 
- useEffect(() => {
-  const checkUser = async () => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;   // ← IMPORTANT: stops here if no token
-    }
-    
-    try {
-      const userData = await base44.auth.me();
-        setUser(userData);
+  const {
+    user,
+    isAuthenticated,
+    isLoadingAuth,
+    googleLogin,
+  } = useAuth();
 
-        if (userData.mobile_number && userData.employee_id && userData.department) {
-          window.location.href = userData.role === 'admin'
-            ? createPageUrl('AdminDashboard')
-            : createPageUrl('Dashboard');
-        } else {
-          window.location.href = createPageUrl('CompleteProfile');
-        }
-      } catch (error) {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const redirectUser = (u) => {
+    if (!u) return;
 
-    checkUser();
-  }, []);
-
-  const handleGetStarted = () => {
-    if (user) {
-      window.location.href = createPageUrl('CompleteProfile');
+    if (u.is_profile_complete) {
+      navigate(
+        createPageUrl(u.role === 'admin' ? 'AdminDashboard' : 'Dashboard'),
+        { replace: true }
+      );
     } else {
-      setShowOnboarding(true);
+      navigate(createPageUrl('CompleteProfile'), { replace: true });
     }
   };
 
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-    window.location.href = createPageUrl('Register');
+  useEffect(() => {
+    if (isLoadingAuth) return;
+
+    if (isAuthenticated && user) {
+      redirectUser(user);
+    }
+  }, [isLoadingAuth, isAuthenticated, user]);
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (loginInProgress.current) return;
+
+    if (!credentialResponse?.credential) {
+      toast.error('Google login failed — no credential');
+      return;
+    }
+
+    loginInProgress.current = true;
+
+    try {
+      const result = await googleLogin(credentialResponse.credential);
+
+      toast.success('Welcome!');
+      redirectUser(result.user);
+    } catch (error) {
+      console.error('[Welcome] Google login error:', error);
+      toast.error(error?.error || error?.message || 'Google login failed');
+    } finally {
+      loginInProgress.current = false;
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center">
-        <div className="animate-pulse text-white">Loading...</div>
-      </div>
-    );
-  }
-
-  if (showOnboarding) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
-  }
+  const handleGoogleError = () => {
+    toast.error('Google login was cancelled');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-blue-600">
-      <div className="container mx-auto px-4 py-12 md:py-20">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      <div className="lg:w-3/5 bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 text-white flex items-center justify-center p-8 lg:p-12 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 opacity-20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-400 opacity-20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          transition={{ duration: 0.5 }}
+          className="relative z-10 max-w-xl"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl mb-6 shadow-2xl">
-            <Clock className="w-12 h-12 text-indigo-600" />
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <Building2 className="w-7 h-7 text-white" />
+            </div>
+            <span className="text-2xl font-bold">AttendEase</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">AttendEase</h1>
-          <p className="text-xl md:text-2xl text-indigo-100 mb-8 max-w-2xl mx-auto">
-            Modern attendance management made simple for your entire team
+
+          <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-6">
+            Your team's workspace,
+            <br />
+            <span className="text-blue-200">all in one place.</span>
+          </h1>
+
+          <p className="text-lg text-blue-100 mb-10">
+            Track attendance, manage projects, chat in real-time, and stay connected with your team.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              onClick={handleGetStarted}
-              size="lg"
-              className="bg-white text-indigo-600 hover:bg-indigo-50 text-lg px-8 py-6 rounded-xl shadow-2xl"
-            >
-              Get Started
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-            <Button
-              onClick={() => (window.location.href = createPageUrl('Login'))}
-              size="lg"
-              variant="outline"
-              className="bg-transparent text-white border-white hover:bg-white/10 text-lg px-8 py-6 rounded-xl"
-            >
-              Sign in
-            </Button>
+          <div className="space-y-4">
+            <Feature icon={Clock} text="Smart attendance tracking with live status" />
+            <Feature icon={Users} text="Real-time team chat & group messaging" />
+            <Feature icon={BarChart3} text="Project boards & task management" />
+            <Feature icon={CheckCircle2} text="Leave requests & approvals" />
           </div>
         </motion.div>
+      </div>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mt-16">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}>
-            <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20 text-white hover:bg-white/20 transition-all">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Quick Clock In/Out</h3>
-              <p className="text-indigo-100">Mark your attendance with a single tap. Track your work hours automatically.</p>
-            </Card>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}>
-            <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20 text-white hover:bg-white/20 transition-all">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Leave Management</h3>
-              <p className="text-indigo-100">Apply for leave and get instant approvals. Stay updated on your leave balance.</p>
-            </Card>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}>
-            <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20 text-white hover:bg-white/20 transition-all">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-4">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Detailed Reports</h3>
-              <p className="text-indigo-100">View attendance history, work hours, and performance insights at a glance.</p>
-            </Card>
-          </motion.div>
-        </div>
-
+      <div className="lg:w-2/5 bg-white flex items-center justify-center p-8 lg:p-12">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-16 max-w-4xl mx-auto"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="w-full max-w-sm"
         >
-          <Card className="p-8 bg-white/10 backdrop-blur-lg border-white/20">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <Shield className="w-10 h-10 text-white" />
-              </div>
-              <div className="text-center md:text-left flex-1">
-                <h3 className="text-2xl font-bold text-white mb-2">Admin Dashboard</h3>
-                <p className="text-indigo-100">
-                  Manage your entire team, approve leave requests, edit attendance records, and generate comprehensive reports.
-                </p>
-              </div>
-              <Users className="w-24 h-24 text-white/20" />
+          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-white" />
             </div>
-          </Card>
-        </motion.div>
+            <span className="text-xl font-bold text-gray-900">AttendEase</span>
+          </div>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="text-center mt-16 text-indigo-100"
-        >
-          <p className="text-sm">Fast • Secure • Mobile-friendly</p>
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Get Started</h2>
+            <p className="text-gray-500">Sign in to access your workspace</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+                width="320"
+                text="continue_with"
+                shape="rectangular"
+              />
+            </div>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-gray-400 font-medium uppercase">
+                  Or
+                </span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => navigate(createPageUrl('Register'))}
+              variant="outline"
+              size="lg"
+              className="w-full h-12 border-2 hover:bg-gray-50 font-medium"
+            >
+              <Mail className="w-5 h-5 mr-3 text-gray-600" />
+              Continue with Email
+            </Button>
+          </div>
+
+          <p className="text-center text-sm text-gray-500 mt-8">
+            Already have an account?{' '}
+            <Link
+              to={createPageUrl('Login')}
+              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+            >
+              Sign in
+            </Link>
+          </p>
+
+          <p className="text-center text-xs text-gray-400 mt-12">
+            By continuing, you agree to our{' '}
+            <Link to={createPageUrl('PrivacyPolicy')} className="underline hover:text-gray-600">
+              Privacy Policy
+            </Link>
+          </p>
         </motion.div>
       </div>
     </div>
   );
 }
+
+const Feature = ({ icon: Icon, text }) => (
+  <div className="flex items-center gap-3">
+    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+      <Icon className="w-5 h-5 text-white" />
+    </div>
+    <span className="text-blue-50">{text}</span>
+  </div>
+);

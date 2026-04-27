@@ -21,48 +21,75 @@ export const AuthProvider = ({ children }) => {
 
   const checkUserAuth = async () => {
     const token = getToken();
+
     if (!token) {
-      setIsLoadingAuth(false);
+      setUser(null);
       setIsAuthenticated(false);
+      setIsLoadingAuth(false);
       return;
     }
 
     try {
       setIsLoadingAuth(true);
+
       const currentUser = await base44.auth.me();
+
       setUser(currentUser);
       setIsAuthenticated(true);
-      setIsLoadingAuth(false);
+      setAuthError(null);
     } catch (error) {
       console.error('Auth check failed:', error);
-      setIsLoadingAuth(false);
+
+      setUser(null);
       setIsAuthenticated(false);
+
       if (error.status === 401 || error.status === 403) {
-        setAuthError({ type: 'auth_required', message: 'Please log in' });
+        setAuthError({
+          type: 'auth_required',
+          message: 'Please log in',
+        });
       }
+    } finally {
+      setIsLoadingAuth(false);
     }
   };
 
   const login = async (email, password) => {
     const result = await base44.auth.login(email, password);
+
     setUser(result.user);
     setIsAuthenticated(true);
     setAuthError(null);
+
+    return result;
+  };
+
+  const googleLogin = async (credential) => {
+    const result = await base44.auth.googleLogin(credential);
+
+    setUser(result.user);
+    setIsAuthenticated(true);
+    setAuthError(null);
+
     return result;
   };
 
   const register = async (userData) => {
     const result = await base44.auth.register(userData);
+
     setUser(result.user);
     setIsAuthenticated(true);
     setAuthError(null);
+
     return result;
   };
 
   const logout = (shouldRedirect = true) => {
     base44.auth.logout(shouldRedirect ? window.location.origin + '/Welcome' : null);
+
     setUser(null);
     setIsAuthenticated(false);
+    setAuthError(null);
   };
 
   const navigateToLogin = () => {
@@ -81,6 +108,7 @@ export const AuthProvider = ({ children }) => {
         authError,
         appPublicSettings,
         login,
+        googleLogin,
         register,
         logout,
         navigateToLogin,
@@ -94,8 +122,10 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 };

@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 // Singleton pattern: only ONE document for the whole app's settings
 const appSettingsSchema = new mongoose.Schema({
-<<<<<<< HEAD
+
   app_name: {
     type: String,
     default: 'AttendEase',
@@ -30,7 +30,7 @@ const appSettingsSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-=======
+
   app_name: {
     type: String,
     default: 'AttendEase',
@@ -58,24 +58,24 @@ const appSettingsSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+//  686fead (feat: implement app settings management with admin controls)
 }, { timestamps: true });
 
 // Helper to get-or-create the singleton settings document
 appSettingsSchema.statics.getSingleton = async function () {
-<<<<<<< HEAD
+ HEAD
   let settings = await this.findOne();
   if (!settings) {
     settings = await this.create({});
   }
   return settings;
-=======
+
   let settings = await this.findOne();
   if (!settings) {
     settings = await this.create({});
   }
   return settings;
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+//  686fead (feat: implement app settings management with admin controls)
 };
 
 export default mongoose.model('AppSettings', appSettingsSchema);

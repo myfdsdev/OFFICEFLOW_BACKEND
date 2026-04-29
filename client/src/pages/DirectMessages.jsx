@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DirectMessagesList from '../components/messages/DirectMessagesList';
@@ -8,10 +8,22 @@ import GroupChatInterface from '../components/groups/GroupChatInterface';
 import NotificationBell from '../components/notifications/NotificationBell';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, Megaphone, Pin, Star } from "lucide-react";
+import {
+  MessageCircle,
+  Megaphone,
+  Pin,
+  Star,
+  Search,
+  Bell,
+  Users,
+  MessagesSquare,
+  X,
+  ArrowLeft,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { motion } from "framer-motion";
-import { format } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import MessageContextMenu from '../components/messages/MessageContextMenu';
 import RichTextInput from '../components/messages/RichTextInput';
@@ -19,152 +31,215 @@ import ConversationMenu from '../components/messages/ConversationMenu.jsx';
 import UserProfileDialog from '../components/messages/UserProfileDialog';
 import { toast } from 'react-hot-toast';
 
+function cn(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function Banner({ message }) {
+  if (!message) return null;
+
+  return (
+    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+      <div className="flex items-start gap-2">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <span className="break-words">{message}</span>
+      </div>
+    </div>
+  );
+}
+
+function InfoPill({ icon: Icon, label, value, tone = "slate" }) {
+  const tones = {
+    slate: "border-lime-400/20 bg-[#061006]/80/70 text-lime-100/75",
+    indigo: "border-lime-400/20 bg-lime-400/10 text-lime-300",
+    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+    amber: "border-amber-500/20 bg-amber-500/10 text-amber-300",
+  };
+
+  return (
+    <div className={cn("inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium", tones[tone])}>
+      <Icon className="w-3.5 h-3.5" />
+      <span className="text-lime-100/55">{label}</span>
+      <span className="text-white">{value}</span>
+    </div>
+  );
+}
+
+function ChatDateSeparator({ date }) {
+  let label = format(date, 'MMM d, yyyy');
+
+  if (isToday(date)) label = 'Today';
+  else if (isYesterday(date)) label = 'Yesterday';
+
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <div className="h-px flex-1 bg-[#061006]/80" />
+      <span className="text-[11px] uppercase tracking-[0.18em] text-lime-100/45">{label}</span>
+      <div className="h-px flex-1 bg-[#061006]/80" />
+    </div>
+  );
+}
+
+function formatMessageTime(value) {
+  if (!value) return '';
+  try {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return format(toZonedTime(parsed, 'Asia/Kolkata'), 'MMM d, h:mm a');
+  } catch {
+    return '';
+  }
+}
+
+function groupMessagesByDay(messages) {
+  const grouped = [];
+  let lastDateKey = null;
+
+  for (const msg of messages) {
+    const msgDate = new Date(msg.created_date);
+    const dateKey = format(msgDate, 'yyyy-MM-dd');
+
+    if (dateKey !== lastDateKey) {
+      grouped.push({
+        type: 'separator',
+        id: `sep-${dateKey}`,
+        date: msgDate,
+      });
+      lastDateKey = dateKey;
+    }
+
+    grouped.push({
+      type: 'message',
+      data: msg,
+    });
+  }
+
+  return grouped;
+}
+
 export default function DirectMessages() {
   const [user, setUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showBroadcast, setShowBroadcast] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const [starredConversations, setStarredConversations] = useState(() => {
     const saved = localStorage.getItem('starredConversations');
     return saved ? JSON.parse(saved) : [];
   });
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [showPinned, setShowPinned] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(true);
+
   const messagesEndRef = useRef(null);
   const queryClient = useQueryClient();
 
-  // Toggle star conversation
   const toggleStar = (userId) => {
-    setStarredConversations(prev => {
+    setStarredConversations((prev) => {
       const newStarred = prev.includes(userId)
-        ? prev.filter(id => id !== userId)
+        ? prev.filter((id) => id !== userId)
         : [...prev, userId];
+
       localStorage.setItem('starredConversations', JSON.stringify(newStarred));
+
+      toast.success(prev.includes(userId) ? 'Conversation unstarred' : 'Conversation starred');
       return newStarred;
     });
-    toast.success(starredConversations.includes(userId) ? 'Unstarred conversation' : 'Starred conversation');
   };
 
   useEffect(() => {
     const initUser = async () => {
-      const userData = await base44.auth.me();
-      setUser(userData);
-      
-      // Mark ALL message notifications as read when DirectMessages page opens
-      if (userData) {
-        try {
-          const notifications = await base44.entities.Notification.filter({
-            user_email: userData.email,
-            is_read: false,
-            type: 'new_message'
-          });
-          
-          const updatePromises = (notifications || []).map(notif => 
-            base44.entities.Notification.update(notif.id, { is_read: true })
-          );
-          await Promise.all(updatePromises);
-          
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        } catch (error) {
-          console.error('Failed to mark notifications as read:', error);
-        }
+      try {
+        const userData = await base44.auth.me();
+        setUser(userData);
+      } catch (error) {
+        setPageError('Unable to load your chat workspace. Please refresh the page.');
       }
     };
-    
-    initUser();
-  }, [queryClient]);
 
-  // ===========================================
-  // FETCH MESSAGES (FIXED — uses filter not list)
-  // ===========================================
-  const { data: allConversationMessages = [], isLoading: loadingMessages, error: messagesError, refetch } = useQuery({
+    initUser();
+  }, []);
+
+  const {
+    data: allConversationMessages = [],
+    isLoading: loadingMessages,
+    error: messagesError,
+  } = useQuery({
     queryKey: ['messages', user?.id, selectedUser?.id],
     queryFn: async () => {
       if (!user || !selectedUser) return [];
-      
-      try {
-        // Fetch messages where I am sender OR receiver to selectedUser
-        const [sentMessages, receivedMessages] = await Promise.all([
-          base44.entities.Message.filter({
-            sender_id: user.id,
-            receiver_id: selectedUser.id,
-          }, '-createdAt', 1000),
-          base44.entities.Message.filter({
-            sender_id: selectedUser.id,
-            receiver_id: user.id,
-          }, '-createdAt', 1000),
-        ]);
 
-        // Combine + sort chronologically
-        const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
-        return allMessages.sort((a, b) => 
-          new Date(a.created_date || a.createdAt) - new Date(b.created_date || b.createdAt)
+      try {
+        const allMessages = await base44.entities.Message.list('-created_date', 1000);
+
+        const conversationMessages = allMessages.filter(
+          (m) =>
+            (m.sender_id === user.id && m.receiver_id === selectedUser.id) ||
+            (m.sender_id === selectedUser.id && m.receiver_id === user.id)
+        );
+
+        return conversationMessages.sort(
+          (a, b) => new Date(a.created_date) - new Date(b.created_date)
         );
       } catch (error) {
         console.error('Failed to fetch messages:', error);
-        return [];
+        throw error;
       }
     },
     enabled: !!user && !!selectedUser,
   });
 
-  // Filter messages based on search
-  const messages = searchQuery
-    ? allConversationMessages.filter(msg => 
-        msg.message_text && msg.message_text.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : allConversationMessages;
+  const messages = useMemo(() => {
+    if (!messageSearchQuery.trim()) return allConversationMessages;
 
-  // ===========================================
-  // REAL-TIME MESSAGE SUBSCRIPTION (LIVE UPDATES)
-  // ===========================================
+    return allConversationMessages.filter((msg) =>
+      (msg.message_text || '').toLowerCase().includes(messageSearchQuery.toLowerCase())
+    );
+  }, [allConversationMessages, messageSearchQuery]);
+
+  const groupedMessages = useMemo(() => groupMessagesByDay(messages), [messages]);
+
+  const pinnedMessages = useMemo(
+    () => messages.filter((m) => m.is_pinned && !m.is_deleted),
+    [messages]
+  );
+
   useEffect(() => {
     if (!user) return;
 
     const unsubscribe = base44.entities.Message.subscribe((event) => {
-      if (event.type !== 'create' || !event.data) return;
-      
-      const msg = event.data;
-      const myId = String(user.id);
-      const senderId = String(msg.sender_id);
-      const receiverId = String(msg.receiver_id);
-      
-      // Only process messages involving me
-      if (senderId !== myId && receiverId !== myId) return;
-      
-      // Refresh ALL message queries (including current chat)
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      queryClient.invalidateQueries({ queryKey: ['unreadCounts'] });
-      
-      // Auto-mark as read if from currently open chat
-      if (
-        selectedUser &&
-        receiverId === myId &&
-        senderId === String(selectedUser.id) &&
-        !msg.is_read
-      ) {
-        const msgId = msg.id || msg._id;
-        if (msgId) {
-          base44.entities.Message.update(msgId, { is_read: true })
-            .catch(console.error);
+      if (event.type === 'create' || event.type === 'update') {
+        const msg = event.data;
+
+        if (msg.sender_id === user.id || msg.receiver_id === user.id) {
+          queryClient.invalidateQueries({ queryKey: ['messages'] });
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
+          if (
+            msg.receiver_id === user.id &&
+            msg.sender_id === selectedUser?.id &&
+            !msg.is_read
+          ) {
+            base44.entities.Message.update(msg.id, { is_read: true }).catch(console.error);
+          }
         }
       }
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, [user, selectedUser, queryClient]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, selectedUser]);
 
-  // ===========================================
-  // SEND MESSAGE WITH OPTIMISTIC UPDATE
-  // ===========================================
   const sendMessageMutation = useMutation({
     mutationFn: async (text) => {
+      const cleanText = text?.trim();
+      if (!cleanText) return null;
+
       const newMessage = await base44.entities.Message.create({
         sender_id: user.id,
         sender_email: user.email,
@@ -172,61 +247,31 @@ export default function DirectMessages() {
         receiver_id: selectedUser.id,
         receiver_email: selectedUser.email,
         receiver_name: selectedUser.full_name,
-        message_text: text,
+        message_text: cleanText,
         is_read: false,
         is_edited: false,
         is_pinned: false,
         is_deleted: false,
         muted_by: [],
       });
+
+      await base44.entities.Notification.create({
+        user_email: selectedUser.email,
+        title: 'New Message',
+        message: `${user.full_name}: ${cleanText.substring(0, 50)}${cleanText.length > 50 ? '...' : ''}`,
+        type: 'new_message',
+        is_read: false,
+        related_id: newMessage.id,
+      });
+
       return newMessage;
     },
-    // 🚀 OPTIMISTIC: Show message INSTANTLY in UI before server confirms
-    onMutate: async (text) => {
-      const queryKey = ['messages', user?.id, selectedUser?.id];
-      await queryClient.cancelQueries({ queryKey });
-
-      const previousMessages = queryClient.getQueryData(queryKey) || [];
-
-      const optimisticMessage = {
-        id: `temp-${Date.now()}`,
-        sender_id: user.id,
-        sender_email: user.email,
-        sender_name: user.full_name,
-        receiver_id: selectedUser.id,
-        receiver_email: selectedUser.email,
-        receiver_name: selectedUser.full_name,
-        message_text: text,
-        created_date: new Date().toISOString().replace('Z', ''),
-        createdAt: new Date().toISOString(),
-        is_read: false,
-        is_edited: false,
-        is_pinned: false,
-        is_deleted: false,
-        muted_by: [],
-        _optimistic: true,
-      };
-
-      queryClient.setQueryData(queryKey, [...previousMessages, optimisticMessage]);
-      return { previousMessages };
-    },
-    onError: (err, variables, context) => {
-      // Rollback if failed
-      if (context?.previousMessages) {
-        queryClient.setQueryData(
-          ['messages', user?.id, selectedUser?.id],
-          context.previousMessages
-        );
-      }
-      toast.error('Failed to send message');
-    },
-    onSettled: () => {
-      // Always refetch real data after settle
-      queryClient.invalidateQueries({ queryKey: ['messages', user?.id, selectedUser?.id] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 
-  // Message Actions
   const handleEditMessage = async (messageId, newText) => {
     await base44.entities.Message.update(messageId, {
       message_text: newText,
@@ -253,16 +298,16 @@ export default function DirectMessages() {
   };
 
   const handleToggleMute = async (messageId) => {
-    const msg = messages.find(m => m.id === messageId);
-    if (!msg) return;
-    const mutedBy = msg.muted_by || [];
+    const msg = messages.find((m) => m.id === messageId);
+    const mutedBy = msg?.muted_by || [];
     const isMuted = mutedBy.includes(user.id);
-    
+
     await base44.entities.Message.update(messageId, {
-      muted_by: isMuted 
-        ? mutedBy.filter(id => id !== user.id)
-        : [...mutedBy, user.id]
+      muted_by: isMuted
+        ? mutedBy.filter((id) => id !== user.id)
+        : [...mutedBy, user.id],
     });
+
     queryClient.invalidateQueries({ queryKey: ['messages'] });
   };
 
@@ -296,23 +341,25 @@ export default function DirectMessages() {
     queryClient.invalidateQueries({ queryKey: ['messages'] });
   };
 
-  // Mark messages as read when conversation opened
   useEffect(() => {
-    const markAsRead = async () => {
-      if (!user || !selectedUser || !messages || messages.length === 0) return;
+    const markConversationAsRead = async () => {
+      if (!user || !selectedUser || !allConversationMessages.length) return;
 
       try {
-        const unreadMessages = messages.filter(m => 
-          m.receiver_id === user.id && 
-          m.sender_id === selectedUser.id && 
-          !m.is_read &&
-          !m._optimistic
+        const unreadMessages = allConversationMessages.filter(
+          (m) =>
+            m.receiver_id === user.id &&
+            m.sender_id === selectedUser.id &&
+            !m.is_read
         );
 
-        const updatePromises = unreadMessages.map(msg =>
-          base44.entities.Message.update(msg.id, { is_read: true })
-        );
-        await Promise.all(updatePromises);
+        if (unreadMessages.length > 0) {
+          await Promise.all(
+            unreadMessages.map((msg) =>
+              base44.entities.Message.update(msg.id, { is_read: true })
+            )
+          );
+        }
 
         const messageNotifications = await base44.entities.Notification.filter({
           user_email: user.email,
@@ -320,247 +367,415 @@ export default function DirectMessages() {
           is_read: false,
         });
 
-        const notifUpdatePromises = (messageNotifications || [])
-          .filter(notif => notif.message && notif.message.includes(selectedUser.full_name))
-          .map(notif => base44.entities.Notification.update(notif.id, { is_read: true }));
-        
-        await Promise.all(notifUpdatePromises);
-        
+        const relevantNotifications = messageNotifications.filter((notif) =>
+          (notif.message || '').includes(selectedUser.full_name)
+        );
+
+        if (relevantNotifications.length > 0) {
+          await Promise.all(
+            relevantNotifications.map((notif) =>
+              base44.entities.Notification.update(notif.id, { is_read: true })
+            )
+          );
+        }
+
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
       } catch (error) {
-        console.error('Failed to mark messages as read:', error);
+        console.error('Failed to mark conversation as read:', error);
       }
     };
 
-    markAsRead();
-  }, [user, selectedUser, messages, queryClient]);
+    markConversationAsRead();
+  }, [user, selectedUser, allConversationMessages, queryClient]);
 
   const handleSendMessage = (text) => {
-    if (text && text.trim() && !sendMessageMutation.isPending) {
+    if (text && !sendMessageMutation.isPending && selectedUser) {
       sendMessageMutation.mutate(text);
     }
   };
 
-  // Safe date formatter
-  const formatMessageTime = (msg) => {
-    try {
-      const dateStr = msg.created_date || msg.createdAt;
-      if (!dateStr) return '';
-      // Handle both formats (with and without Z)
-      const cleanDate = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
-      return format(toZonedTime(new Date(cleanDate), 'Asia/Kolkata'), 'MMM d, h:mm a');
-    } catch (e) {
-      return '';
-    }
-  };
+  const activeConversationTitle = selectedGroup
+    ? selectedGroup.group_name
+    : selectedUser?.full_name || 'Messages';
+
+  const selectedUserInitials = selectedUser?.full_name
+    ? selectedUser.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : 'U';
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex items-center gap-3 text-lime-100/55">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading workspace...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50">
-      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 flex items-center justify-between"
-        >
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Direct Messages</h1>
-            <p className="text-gray-500 mt-1">Connect with your team</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell userEmail={user.email} />
-            {user.role === 'admin' && (
-              <Button
-                onClick={() => setShowBroadcast(true)}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Megaphone className="w-4 h-4 mr-2" />
-                Broadcast
-              </Button>
-            )}
-          </div>
-        </motion.div>
+    <div className="min-h-screen bg-black overflow-hidden">
+      <div className="max-w-[1600px] mx-auto h-screen flex flex-col px-3 md:px-4 lg:px-6 py-3 md:py-4 gap-4">
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* User List Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            <GroupChatList
-              currentUser={user}
-              onGroupSelect={(group) => {
-                setSelectedGroup(group);
-                setSelectedUser(null);
-              }}
-            />
-            <DirectMessagesList 
-              currentUser={user} 
-              onUserSelect={(u) => {
-                setSelectedUser(u);
-                setSelectedGroup(null);
-              }}
-            />
+        <Banner message={pageError || messagesError?.message} />
+
+        {/* Top Bar */}
+        <div className="rounded-[1.75rem] border border-lime-400/15 bg-[#020806]/90 px-4 md:px-5 py-4 shadow-[0_14px_40px_rgba(0,0,0,0.18)]">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 mb-2 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-lime-400/10 border border-lime-400/20 flex items-center justify-center shrink-0">
+                  <MessagesSquare className="w-5 h-5 text-lime-300" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-2xl md:text-3xl font-semibold text-white tracking-tight break-words">
+                    Communication Hub
+                  </h1>
+                  <p className="text-sm text-lime-100/55 break-words">
+                    Slack-style team messaging for direct and group communication
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <InfoPill icon={Bell} label="Starred" value={String(starredConversations.length)} tone="amber" />
+                <InfoPill icon={Users} label="Mode" value={selectedGroup ? "Group Chat" : selectedUser ? "Direct Message" : "No Chat Selected"} tone="slate" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <NotificationBell userEmail={user.email} />
+              {user.role === 'admin' && (
+                <Button
+                  onClick={() => setShowBroadcast(true)}
+                  className="h-11 bg-lime-400 hover:bg-lime-400 rounded-2xl text-black"
+                >
+                  <Megaphone className="w-4 h-4 mr-2" />
+                  Broadcast
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Workspace */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-4">
+          {/* Sidebar */}
+          <div className={cn(
+            "min-h-0 rounded-[1.75rem] border border-lime-400/15 bg-[#020806]/90 shadow-[0_14px_40px_rgba(0,0,0,0.18)] overflow-hidden",
+            mobileSidebarOpen ? "block" : "hidden lg:block"
+          )}>
+            <div className="h-full flex flex-col min-h-0">
+              <div className="p-4 border-b border-lime-400/15 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-lime-100/55">
+                      Conversations
+                    </h2>
+                    <p className="text-xs text-lime-100/45 mt-1">Browse direct messages and groups</p>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-lime-100/45" />
+                  <input
+                    value={sidebarSearch}
+                    onChange={(e) => setSidebarSearch(e.target.value)}
+                    placeholder="Search people or groups..."
+                    className="w-full h-11 rounded-2xl border border-lime-400/15 bg-[#000000] pl-10 pr-4 text-sm text-white placeholder:text-lime-100/45 outline-none focus:border-lime-400/40"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-lime-100/45 px-1">Group Chats</p>
+                  <GroupChatList
+                    currentUser={user}
+                    searchQuery={sidebarSearch}
+                    onGroupSelect={(group) => {
+                      setSelectedGroup(group);
+                      setSelectedUser(null);
+                      setMobileSidebarOpen(false);
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-lime-100/45 px-1">Direct Messages</p>
+                  <DirectMessagesList
+                    currentUser={user}
+                    searchQuery={sidebarSearch}
+                    starredConversations={starredConversations}
+                    onUserSelect={(selected) => {
+                      setSelectedUser(selected);
+                      setSelectedGroup(null);
+                      setMessageSearchQuery('');
+                      setMobileSidebarOpen(false);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Chat Area */}
-          <div className="lg:col-span-2">
+          {/* Chat Panel */}
+          <div className="min-h-0">
             {selectedGroup ? (
-              <GroupChatInterface
-                group={selectedGroup}
-                currentUser={user}
-              />
+              <div className="h-full min-h-0 rounded-[1.75rem] border border-lime-400/15 bg-[#020806]/90 shadow-[0_14px_40px_rgba(0,0,0,0.18)] overflow-hidden">
+                <GroupChatInterface
+                  group={selectedGroup}
+                  currentUser={user}
+                />
+              </div>
             ) : selectedUser ? (
-              <Card className="border-0 shadow-sm h-[600px] flex flex-col">
+              <Card className="border border-lime-400/15 bg-[#020806]/90 h-full min-h-0 flex flex-col rounded-[1.75rem] shadow-[0_14px_40px_rgba(0,0,0,0.18)] overflow-hidden">
                 {/* Chat Header */}
-                <div className="p-4 border-b bg-white rounded-t-xl">
+                <div className="p-4 border-b border-lime-400/15 bg-[#020806]/90/95">
                   <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="lg:hidden h-9 w-9 rounded-xl text-lime-100/55 hover:text-white hover:bg-[#061006]/80"
+                      onClick={() => setMobileSidebarOpen(true)}
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
+
                     <div className="relative">
-                      <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <span className="text-indigo-600 font-semibold">
-                          {selectedUser.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                      <div className="w-12 h-12 bg-lime-400/10 border border-lime-400/20 rounded-2xl flex items-center justify-center">
+                        <span className="text-lime-300 font-semibold text-sm">
+                          {selectedUserInitials}
                         </span>
                       </div>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${selectedUser.is_online ? 'bg-green-500' : 'bg-gray-400'}`} />
+                      <div
+                        className={cn(
+                          "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-900",
+                          selectedUser.is_online ? 'bg-emerald-500' : 'bg-black0'
+                        )}
+                      />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">{selectedUser.full_name}</h3>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-white break-words">
+                          {selectedUser.full_name}
+                        </h3>
                         {starredConversations.includes(selectedUser.id) && (
-                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
                         )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-500">
-                          {selectedUser.is_online ? 'Online' : 'Offline'}
-                        </p>
                         {selectedUser.role === 'admin' && (
-                          <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">Admin</span>
+                          <span className="text-[11px] bg-lime-400/10 border border-lime-400/20 text-lime-300 px-2 py-0.5 rounded-full">
+                            Admin
+                          </span>
                         )}
                       </div>
+
+                      <p className="text-sm text-lime-100/55">
+                        {selectedUser.is_online ? 'Online now' : 'Offline'}
+                      </p>
                     </div>
-                    <ConversationMenu 
-                      selectedUser={selectedUser}
-                      onAction={(action) => {
-                        if (action === 'copy') {
-                          navigator.clipboard.writeText(selectedUser.email);
-                          toast.success('Email copied to clipboard');
-                        } else if (action === 'star') {
-                          toggleStar(selectedUser.id);
-                        } else if (action === 'search') {
-                          const query = prompt('Search in conversation:');
-                          if (query) setSearchQuery(query);
-                        } else if (action === 'hide') {
-                          setSelectedUser(null);
-                          toast.success('Conversation hidden');
-                        } else if (action === 'view-profile') {
-                          setProfileDialogOpen(true);
-                        } else {
-                          toast.success(`${action} feature coming soon`);
-                        }
-                      }}
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="hidden md:block relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lime-100/45" />
+                        <input
+                          value={messageSearchQuery}
+                          onChange={(e) => setMessageSearchQuery(e.target.value)}
+                          placeholder="Search in conversation"
+                          className="w-[220px] h-10 rounded-xl border border-lime-400/15 bg-[#000000] pl-9 pr-3 text-sm text-white placeholder:text-lime-100/45 outline-none focus:border-lime-400/40"
+                        />
+                        {messageSearchQuery && (
+                          <button
+                            onClick={() => setMessageSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-lime-100/45 hover:text-white"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <ConversationMenu
+                        selectedUser={selectedUser}
+                        onAction={(action) => {
+                          if (action === 'copy') {
+                            navigator.clipboard.writeText(selectedUser.email);
+                            toast.success('Email copied to clipboard');
+                          } else if (action === 'star') {
+                            toggleStar(selectedUser.id);
+                          } else if (action === 'search') {
+                            const field = document.querySelector('[placeholder="Search in conversation"]');
+                            field?.focus();
+                          } else if (action === 'hide') {
+                            setSelectedUser(null);
+                            toast.success('Conversation hidden');
+                          } else if (action === 'view-profile') {
+                            setProfileDialogOpen(true);
+                          } else {
+                            toast.success(`${action} feature coming soon`);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mobile conversation search */}
+                  <div className="md:hidden mt-3 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lime-100/45" />
+                    <input
+                      value={messageSearchQuery}
+                      onChange={(e) => setMessageSearchQuery(e.target.value)}
+                      placeholder="Search in conversation"
+                      className="w-full h-10 rounded-xl border border-lime-400/15 bg-[#000000] pl-9 pr-9 text-sm text-white placeholder:text-lime-100/45 outline-none focus:border-lime-400/40"
                     />
+                    {messageSearchQuery && (
+                      <button
+                        onClick={() => setMessageSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-lime-100/45 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
-                  {searchQuery && (
-                    <div className="bg-indigo-50 px-4 py-2 rounded-lg flex items-center justify-between">
-                      <span className="text-sm text-indigo-700">
-                        {messages.length} result(s) for "{searchQuery}"
+                <div className="flex-1 min-h-0 overflow-y-auto bg-black px-4 py-4 space-y-4">
+                  {messageSearchQuery && (
+                    <div className="bg-lime-400/10 border border-lime-400/20 px-4 py-3 rounded-2xl flex items-center justify-between gap-3">
+                      <span className="text-sm text-lime-300 break-words">
+                        {messages.length} result(s) for "{messageSearchQuery}"
                       </span>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => setSearchQuery('')}
-                        className="text-indigo-600"
+                        onClick={() => setMessageSearchQuery('')}
+                        className="text-lime-300 hover:text-white hover:bg-[#061006]/80"
                       >
                         Clear
                       </Button>
                     </div>
                   )}
+
+                  {pinnedMessages.length > 0 && (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 overflow-hidden">
+                      <button
+                        className="w-full flex items-center justify-between px-4 py-3 text-left"
+                        onClick={() => setShowPinned((prev) => !prev)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Pin className="w-4 h-4 text-amber-300" />
+                          <span className="text-sm font-medium text-amber-200">
+                            Pinned Messages ({pinnedMessages.length})
+                          </span>
+                        </div>
+                        <span className="text-xs text-amber-300">
+                          {showPinned ? 'Hide' : 'Show'}
+                        </span>
+                      </button>
+
+                      {showPinned && (
+                        <div className="px-4 pb-4 space-y-2">
+                          {pinnedMessages.map((msg) => (
+                            <div
+                              key={msg.id}
+                              className="text-xs bg-[#020806]/90/80 rounded-xl p-3 text-lime-100/75 break-words border border-lime-400/15"
+                            >
+                              {msg.message_text}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {loadingMessages ? (
                     <div className="flex items-center justify-center h-full">
-                      <div className="animate-pulse text-gray-400">Loading messages...</div>
-                    </div>
-                  ) : messages.length === 0 && !searchQuery ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-400">No messages yet</p>
-                        <p className="text-sm text-gray-400">Start the conversation!</p>
+                      <div className="flex items-center gap-3 text-lime-100/55">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Loading messages...</span>
                       </div>
                     </div>
-                  ) : messages.length === 0 && searchQuery ? (
+                  ) : messages.length === 0 && !messageSearchQuery ? (
                     <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
-                        <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-400">No messages found</p>
+                      <div className="text-center px-6">
+                        <div className="w-16 h-16 bg-[#061006]/80 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MessageCircle className="w-8 h-8 text-lime-100/45" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-white mb-2">No messages yet</h3>
+                        <p className="text-lime-100/55">
+                          Start the conversation with {selectedUser.full_name}.
+                        </p>
+                      </div>
+                    </div>
+                  ) : messages.length === 0 && messageSearchQuery ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center px-6">
+                        <div className="w-16 h-16 bg-[#061006]/80 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Search className="w-8 h-8 text-lime-100/45" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-white mb-2">No messages found</h3>
+                        <p className="text-lime-100/55">Try another search term.</p>
                       </div>
                     </div>
                   ) : (
                     <>
-                      {/* Pinned Messages */}
-                      {messages.filter(m => m.is_pinned && !m.is_deleted).length > 0 && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Pin className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm font-semibold text-amber-900">Pinned Messages</span>
-                          </div>
-                          <div className="space-y-2">
-                            {messages.filter(m => m.is_pinned && !m.is_deleted).map(msg => (
-                              <div key={msg.id} className="text-xs bg-white rounded p-2 text-gray-700">
-                                {msg.message_text && msg.message_text.substring(0, 50)}...
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {groupedMessages.map((entry, index) => {
+                        if (entry.type === 'separator') {
+                          return <ChatDateSeparator key={entry.id} date={entry.date} />;
+                        }
 
-                      {/* Regular Messages */}
-                      {messages.map((msg) => {
-                        const isSender = String(msg.sender_id) === String(user.id);
-                        const isBroadcast = msg.message_text && msg.message_text.startsWith('📢 BROADCAST:');
+                        const msg = entry.data;
+                        const isSender = msg.sender_id === user.id;
+                        const isBroadcast = (msg.message_text || '').startsWith('📢 BROADCAST:');
                         const isDeleted = msg.is_deleted && (msg.deleted_for_everyone || msg.deleted_by === user.id);
-                        const isOptimistic = msg._optimistic;
+
+                        const previousMessage = groupedMessages[index - 1]?.type === 'message'
+                          ? groupedMessages[index - 1].data
+                          : null;
+
+                        const groupedWithPrevious =
+                          previousMessage &&
+                          previousMessage.sender_id === msg.sender_id &&
+                          format(new Date(previousMessage.created_date), 'yyyy-MM-dd HH:mm') ===
+                            format(new Date(msg.created_date), 'yyyy-MM-dd HH:mm');
 
                         return (
                           <motion.div
                             key={msg.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`flex ${isSender ? 'justify-end' : 'justify-start'} group`}
+                            className={cn(
+                              "flex group",
+                              isSender ? 'justify-end' : 'justify-start',
+                              groupedWithPrevious ? 'mt-1' : 'mt-3'
+                            )}
                             id={`message-${msg.id}`}
                           >
-                            <div className={`max-w-[70%] ${isSender ? 'order-2' : 'order-1'}`}>
+                            <div className={cn("max-w-[85%] md:max-w-[72%]", isSender ? 'order-2' : 'order-1')}>
                               <div className="flex items-start gap-2">
-                                <div className={`rounded-2xl px-4 py-2 ${
-                                  isDeleted
-                                    ? 'bg-gray-200 text-gray-500 italic'
-                                    : isBroadcast
-                                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                      : isSender 
-                                        ? 'bg-indigo-600 text-white' 
-                                        : 'bg-white text-gray-900'
-                                } ${msg.is_pinned ? 'ring-2 ring-amber-300' : ''} ${isOptimistic ? 'opacity-70' : ''}`}>
-                                  <div className="flex items-start gap-2">
-                                    <p className="text-sm break-words flex-1">
-                                      {msg.message_text}
-                                      {msg.is_edited && !isDeleted && (
-                                        <span className="text-xs opacity-70 ml-2">(edited)</span>
-                                      )}
-                                      {isOptimistic && (
-                                        <span className="text-xs opacity-70 ml-2">(sending...)</span>
-                                      )}
-                                    </p>
-                                  </div>
+                                <div
+                                  className={cn(
+                                    "rounded-2xl px-4 py-3 shadow-[0_24px_80px_rgba(0,0,0,0.35)] border",
+                                    isDeleted
+                                      ? 'bg-[#061006]/80 text-lime-100/45 italic border-lime-400/20'
+                                      : isBroadcast
+                                      ? 'bg-amber-500/10 text-amber-100 border-amber-500/20'
+                                      : isSender
+                                      ? 'bg-lime-400 text-white border-lime-400/30'
+                                      : 'bg-[#020806]/90 text-slate-100 border-lime-400/15',
+                                    msg.is_pinned ? 'ring-2 ring-amber-400/40' : ''
+                                  )}
+                                >
+                                  <p className="text-sm leading-6 break-words">
+                                    {msg.message_text}
+                                    {msg.is_edited && !isDeleted && (
+                                      <span className="text-[11px] opacity-70 ml-2">(edited)</span>
+                                    )}
+                                  </p>
                                 </div>
-                                {!isDeleted && !isOptimistic && (
+
+                                {!isDeleted && (
                                   <MessageContextMenu
                                     message={msg}
                                     currentUser={user}
@@ -574,8 +789,12 @@ export default function DirectMessages() {
                                   />
                                 )}
                               </div>
-                              <p className={`text-xs text-gray-400 mt-1 ${isSender ? 'text-right' : 'text-left'}`}>
-                                {formatMessageTime(msg)}
+
+                              <p className={cn(
+                                "text-[11px] text-lime-100/45 mt-1 px-1",
+                                isSender ? 'text-right' : 'text-left'
+                              )}>
+                                {formatMessageTime(msg.created_date)}
                               </p>
                             </div>
                           </motion.div>
@@ -586,27 +805,34 @@ export default function DirectMessages() {
                   )}
                 </div>
 
-                {/* Message Input */}
-                <div className="p-4 border-t bg-white rounded-b-xl">
+                {/* Composer */}
+                <div className="p-4 border-t border-lime-400/15 bg-[#020806]/90">
                   <RichTextInput
                     onSend={handleSendMessage}
                     disabled={sendMessageMutation.isPending}
-                    placeholder="Type a message..."
+                    placeholder={`Message ${selectedUser.full_name}...`}
                   />
                 </div>
               </Card>
             ) : (
-              <Card className="border-0 shadow-sm h-[600px] flex items-center justify-center">
-                <div className="text-center p-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageCircle className="w-8 h-8 text-gray-400" />
+              <Card className="border border-lime-400/15 bg-[#020806]/90 h-full min-h-0 flex items-center justify-center rounded-[1.75rem] shadow-[0_14px_40px_rgba(0,0,0,0.18)] overflow-hidden">
+                <div className="text-center p-8 max-w-md">
+                  <div className="w-16 h-16 bg-[#061006]/80 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageCircle className="w-8 h-8 text-lime-100/45" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-white mb-2">
                     Select a conversation
                   </h3>
-                  <p className="text-gray-500">
-                    Choose a group chat or direct message to start chatting
+                  <p className="text-lime-100/55">
+                    Choose a group chat or direct message from the sidebar to start chatting.
                   </p>
+
+                  <Button
+                    className="mt-6 lg:hidden bg-lime-400 hover:bg-lime-400 rounded-2xl"
+                    onClick={() => setMobileSidebarOpen(true)}
+                  >
+                    Open Sidebar
+                  </Button>
                 </div>
               </Card>
             )}
@@ -614,14 +840,12 @@ export default function DirectMessages() {
         </div>
       </div>
 
-      {/* Broadcast Dialog */}
       <BroadcastMessageDialog
         isOpen={showBroadcast}
         onClose={() => setShowBroadcast(false)}
         currentUser={user}
       />
 
-      {/* User Profile Dialog */}
       <UserProfileDialog
         open={profileDialogOpen}
         onClose={() => setProfileDialogOpen(false)}

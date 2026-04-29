@@ -39,7 +39,7 @@ export default function OnlineStatusIndicator({ isOnline, size = 'sm', showLabel
         )}
       </div>
       {showLabel && (
-        <span className={`text-xs font-medium ${isOnline ? 'text-green-600' : 'text-gray-500'}`}>
+        <span className={`text-xs font-medium ${isOnline ? 'text-green-600' : 'text-lime-100/50'}`}>
           {isOnline ? 'Online' : 'Offline'}
         </span>
       )}

@@ -63,7 +63,7 @@ const httpServer = createServer(app); // for socket.io
 app.use(helmet());
 
 // Allow multiple frontend origins (dev + production)
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173,http://localhost:5174")
   .split(",")
   .map((url) => url.trim());
 

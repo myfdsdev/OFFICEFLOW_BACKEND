@@ -42,10 +42,10 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
 
   return (
     <>
-      <Card className="border-0 shadow-sm">
+      <Card className="border border-lime-400/15 bg-black">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+          <CardTitle className="text-lg font-semibold flex items-center gap-2 text-white">
+            <FileSpreadsheet className="w-5 h-5 text-lime-300" />
             Attendance Report
           </CardTitle>
         </CardHeader>
@@ -66,7 +66,7 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
               <TableBody>
                 {attendance.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-400">
+                    <TableCell colSpan={7} className="text-center py-8 text-lime-100/35">
                       No attendance records found
                     </TableCell>
                   </TableRow>
@@ -77,12 +77,12 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.2, delay: index * 0.02 }}
-                      className="border-b hover:bg-gray-50 transition-colors"
+                      className="border-b hover:bg-black transition-colors"
                     >
                       <TableCell>
                         <div>
                           <p className="font-medium">{record.employee_name}</p>
-                          <p className="text-sm text-gray-500">{record.employee_email}</p>
+                          <p className="text-sm text-lime-100/50">{record.employee_email}</p>
                         </div>
                       </TableCell>
                       <TableCell>{format(parseISO(record.date), "MMM d, yyyy")}</TableCell>
@@ -90,7 +90,7 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
                       <TableCell>{record.clock_out || "-"}</TableCell>
                       <TableCell>
                         {record.work_hours ? (
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-medium text-lime-300">
                             {record.work_hours.toFixed(1)}h
                           </span>
                         ) : "-"}
@@ -105,7 +105,7 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditClick(record)}
-                          className="text-gray-500 hover:text-indigo-600"
+                          className="text-lime-100/50 hover:text-lime-300"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -127,7 +127,7 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
           
           {selectedRecord && (
             <div className="space-y-4 mt-4">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-lime-100/50">
                 {selectedRecord.employee_name} - {format(parseISO(selectedRecord.date), "MMMM d, yyyy")}
               </p>
 
@@ -185,7 +185,7 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
                 <Button
                   onClick={handleSaveEdit}
                   disabled={isEditing}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                  className="flex-1 bg-lime-400 hover:bg-lime-300"
                 >
                   Save Changes
                 </Button>

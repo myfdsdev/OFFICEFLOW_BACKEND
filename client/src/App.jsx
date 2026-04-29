@@ -12,7 +12,11 @@ import {
 } from "react-router-dom";
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
+<<<<<<< HEAD
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
+=======
+import { AppSettingsProvider } from "./lib/AppSettingsContext";
+>>>>>>> 686fead (feat: implement app settings management with admin controls)
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -144,6 +148,7 @@ const AuthenticatedApp = () => {
 function App() {
   return (
     <AppSettingsProvider>
+<<<<<<< HEAD
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
@@ -153,6 +158,18 @@ function App() {
           <Toaster />
         </QueryClientProvider>
       </AuthProvider>
+=======
+    <AuthProvider>
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <NavigationTracker />
+          <AuthenticatedApp />
+        </Router>
+
+        <Toaster />
+      </QueryClientProvider>
+    </AuthProvider>
+>>>>>>> 686fead (feat: implement app settings management with admin controls)
     </AppSettingsProvider>
   );
 }

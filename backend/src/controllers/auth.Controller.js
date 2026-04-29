@@ -3,7 +3,9 @@ import { generateAccessToken, generateRefreshToken } from '../utils/generateToke
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendWelcomeEmail } from '../utils/sendEmail.js';
 import { OAuth2Client } from 'google-auth-library';
+
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 // ==========================================
 // Helper: Build user response object (used everywhere)
 // ==========================================
@@ -58,10 +60,6 @@ export const register = asyncHandler(async (req, res) => {
     mobile_number: mobile_number || '',
     role,
   });
-  // ✅ ADD THIS LINE
-sendWelcomeEmail(user.email, user.full_name).catch((err) => {
-  console.error('Welcome email failed:', err.message);
-});
 
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
@@ -73,7 +71,9 @@ sendWelcomeEmail(user.email, user.full_name).catch((err) => {
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
-  sendWelcomeEmail(user.email, user.full_name).catch(err =>
+  // 📧 Send welcome email (single call, fire-and-forget)
+  console.log(`🎉 New user registered: ${user.email} — sending welcome email...`);
+  sendWelcomeEmail(user.email, user.full_name).catch((err) =>
     console.error('Welcome email failed:', err.message)
   );
 
@@ -122,6 +122,10 @@ export const login = asyncHandler(async (req, res) => {
   });
 });
 
+// ==========================================
+// @desc    Google login / sign-up
+// @route   POST /api/auth/google
+// ==========================================
 export const googleLogin = asyncHandler(async (req, res) => {
   const { credential } = req.body;
 
@@ -145,8 +149,8 @@ export const googleLogin = asyncHandler(async (req, res) => {
   }
 
   const email = payload.email.toLowerCase();
-
   let user = await User.findOne({ email });
+  let isNewUser = false;
 
   const adminEmails = (process.env.ADMIN_EMAILS || '')
     .split(',')
@@ -165,6 +169,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
       employee_id: '',
       mobile_number: '',
     });
+    isNewUser = true;
   } else {
     if (!user.google_id) user.google_id = payload.sub;
     if (!user.auth_provider) user.auth_provider = 'google';
@@ -184,6 +189,14 @@ export const googleLogin = asyncHandler(async (req, res) => {
     sameSite: 'strict',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
+
+  // 📧 Welcome email for new Google sign-ups
+  if (isNewUser) {
+    console.log(`🎉 New Google user: ${user.email} — sending welcome email...`);
+    sendWelcomeEmail(user.email, user.full_name).catch((err) =>
+      console.error('Welcome email failed:', err.message)
+    );
+  }
 
   res.json({
     message: 'Google login successful',

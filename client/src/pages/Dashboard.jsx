@@ -23,57 +23,7 @@ import LeaveRequestList from '../components/leave/LeaveRequestList';
 import NotificationBell from '../components/notifications/NotificationBell';
 import AttendanceReminderPopup from '../components/attendance/AttendanceReminderPopup';
 import { useCheckInOutReminders } from '../components/hooks/useCheckInOutReminders';
-
-// Live Timer Component
-function LiveTimer({ firstCheckIn, lastCheckOut }) {
-  const [elapsed, setElapsed] = useState('00:00:00');
-
-  useEffect(() => {
-    if (!firstCheckIn || lastCheckOut) {
-      // If not clocked in or already clocked out, show static time
-      if (lastCheckOut && firstCheckIn) {
-        const checkIn = new Date(firstCheckIn);
-        const checkOut = new Date(lastCheckOut);
-        const diffMs = checkOut - checkIn;
-        const diffSeconds = Math.floor(diffMs / 1000);
-        
-        const hours = Math.floor(diffSeconds / 3600);
-        const minutes = Math.floor((diffSeconds % 3600) / 60);
-        const seconds = diffSeconds % 60;
-        setElapsed(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-      } else {
-        setElapsed('00:00:00');
-      }
-      return;
-    }
-
-    // Calculate and update elapsed time every second
-    const updateTimer = () => {
-      const now = new Date();
-      const checkIn = new Date(firstCheckIn);
-      
-      const diffMs = now - checkIn;
-      const diffSeconds = Math.floor(diffMs / 1000);
-      
-      const hours = Math.floor(diffSeconds / 3600);
-      const minutes = Math.floor((diffSeconds % 3600) / 60);
-      const seconds = diffSeconds % 60;
-      
-      setElapsed(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-
-    return () => clearInterval(interval);
-  }, [firstCheckIn, lastCheckOut]);
-
-  return (
-    <div className="text-5xl font-bold text-gray-900 font-mono">
-      {elapsed}
-    </div>
-  );
-}
+import SmartTimer from '../components/dashboard/SmartTimer';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -107,7 +57,6 @@ export default function Dashboard() {
   // Show attendance reminder when app loads if no check-in today
   useEffect(() => {
     if (todayAttendance === undefined && user?.email) {
-      // Wait a bit for data to load
       const timer = setTimeout(() => {
         if (!todayAttendance) {
           setShowAttendanceReminder(true);
@@ -119,7 +68,6 @@ export default function Dashboard() {
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
-      // Check for duplicate attendance
       const existingAttendance = await base44.entities.Attendance.filter({
         employee_email: user.email,
         date: today
@@ -129,7 +77,6 @@ export default function Dashboard() {
         throw new Error('Attendance already marked for today');
       }
 
-      // Check for approved leave on this date
       const approvedLeaves = await base44.entities.LeaveRequest.filter({
         employee_email: user.email,
         status: 'approved'
@@ -152,10 +99,6 @@ export default function Dashboard() {
       const minutes = now.getMinutes();
       const totalMinutes = hours * 60 + minutes;
       
-      // Determine status based on check-in time
-      // Before 10:00 AM (600 minutes) → Present
-      // After 10:15 AM (615 minutes) → Late
-      // Between 10:00 and 10:15 → Present (grace period)
       let status = 'present';
       if (totalMinutes > 615) {
         status = 'late';
@@ -171,7 +114,6 @@ export default function Dashboard() {
         has_active_session: true,
       });
 
-      // Send success notification to employee
       await base44.entities.Notification.create({
         user_email: user.email,
         title: 'Check-in Successful',
@@ -180,7 +122,6 @@ export default function Dashboard() {
         related_id: attendance.id,
       });
 
-      // If late, send late entry alert
       if (status === 'late') {
         await base44.entities.Notification.create({
           user_email: user.email,
@@ -191,7 +132,6 @@ export default function Dashboard() {
         });
       }
 
-      // Get all admins and notify them
       const allUsers = await base44.entities.User.list();
       const admins = allUsers.filter(u => u.role === 'admin');
 
@@ -222,8 +162,6 @@ export default function Dashboard() {
       const checkIn = new Date(todayAttendance.first_check_in);
       const workHours = (now - checkIn) / (1000 * 60 * 60);
       
-      // Determine final status based on work hours
-      // If less than 4 hours → Half Day
       let finalStatus = todayAttendance.status;
       if (workHours < 4) {
         finalStatus = 'half_day';
@@ -236,7 +174,6 @@ export default function Dashboard() {
         has_active_session: false,
       });
 
-      // Send success notification to employee
       const clockOutTimeStr = format(now, 'HH:mm');
       await base44.entities.Notification.create({
         user_email: user.email,
@@ -383,9 +320,9 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <div className="mt-8 text-center">
-                  <p className="text-gray-400 text-sm mb-2">Time Elapsed</p>
-                  <LiveTimer 
+                {/* SmartTimer — countdown to office end, then overtime */}
+                <div className="mt-8">
+                  <SmartTimer 
                     firstCheckIn={todayAttendance?.first_check_in}
                     lastCheckOut={todayAttendance?.last_check_out}
                   />

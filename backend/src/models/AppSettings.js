@@ -24,6 +24,15 @@ const appSettingsSchema = new mongoose.Schema({
     type: String,
     default: '#6366f1', // indigo-500
   },
+  // ===== Office Hours (GLOBAL — applies to all employees) =====
+  office_start_time: {
+    type: String,
+    default: '09:00', // 24h format HH:mm
+  },
+  office_end_time: {
+    type: String,
+    default: '18:00', // 24h format HH:mm
+  },
   // Tracking
   updated_by: {
     type: String,

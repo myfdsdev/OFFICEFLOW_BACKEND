@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import AppLogo from '@/components/AppLogo';
+import AppLogo from "@/components/AppLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -211,11 +211,8 @@ export default function Layout({ children, currentPageName }) {
       <NotificationPermissionPrompt />
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 bg-white border-r border-gray-100 p-4">
-        <div className="flex items-center gap-3 px-4 py-4 mb-6">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-            <Clock className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xl font-bold text-gray-900">AttendEase</span>
+        <div className="px-4 py-4 mb-6">
+          <AppLogo size="md" />
         </div>
 
         <nav className="flex-1">
@@ -275,11 +272,9 @@ export default function Layout({ children, currentPageName }) {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-50">
         <div className="flex items-center justify-between px-4 py-3">
-        
           <div className="px-4 py-4 mb-6">
             <AppLogo size="md" />
           </div>
-
           <div className="flex items-center gap-2">
             {user && <NotificationBell userEmail={user.email} />}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

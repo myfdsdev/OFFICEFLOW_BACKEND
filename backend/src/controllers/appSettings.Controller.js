@@ -25,6 +25,8 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
     'html_title',
     'favicon',
     'primary_color',
+    'office_start_time',
+    'office_end_time',
   ];
 
   allowedFields.forEach((field) => {

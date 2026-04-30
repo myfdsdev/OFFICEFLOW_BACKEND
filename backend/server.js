@@ -1,8 +1,10 @@
 // ==========================================
 // IMPORTS
 // ==========================================
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -30,7 +32,6 @@ import uploadRoutes from "./src/routes/upload.Routes.js";
 import functionsRoutes from "./src/routes/functions.Routes.js";
 import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
 // Load env FIRST
-dotenv.config();
 
 // Config & middleware imports
 import connectDB from "./src/config/db.js";

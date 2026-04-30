@@ -43,6 +43,7 @@ export const AppSettingsProvider = ({ children }) => {
     try {
       // Public endpoint — no auth header needed
       const res = await axios.get(`${API_URL}/app-settings`);
+      console.log('🔍 [AppSettings] Loaded from backend:', res.data)
       const loaded = { ...DEFAULT_SETTINGS, ...res.data };
       setSettings(loaded);
       applyToHead(loaded);

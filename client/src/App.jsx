@@ -22,6 +22,7 @@ const PUBLIC_PAGES = [
   "Welcome",
   "Login",
   "Register",
+  "ResetPassword",
   "PrivacyPolicy",
   "AccessDenied",
 ];
@@ -30,6 +31,7 @@ const NO_LAYOUT_PAGES = [
   "Welcome",
   "Login",
   "Register",
+  "ResetPassword",
   "CompleteProfile",
   "AccessDenied",
 ];

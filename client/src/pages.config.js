@@ -23,6 +23,7 @@ import Welcome from './pages/Welcome';
 import __Layout from './Layout.jsx';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
 
 export const PAGES = {
     "AccessDenied": AccessDenied,
@@ -45,6 +46,7 @@ export const PAGES = {
     "Welcome": Welcome,
     "Login": Login,
     "Register": Register,
+    "ResetPassword": ResetPassword,
 };
 
 export const pagesConfig = {

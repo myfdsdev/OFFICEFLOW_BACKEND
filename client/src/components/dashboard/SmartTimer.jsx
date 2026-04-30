@@ -9,10 +9,14 @@ import { Flame, Clock, CheckCircle2 } from 'lucide-react';
  * - When checked out: shows total worked time (green)
  * - When not checked in: shows --:--:--
  */
-export default function SmartTimer({ firstCheckIn, lastCheckOut }) {
+export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift }) {
   const { settings } = useAppSettings();
   const [display, setDisplay] = useState('00:00:00');
   const [mode, setMode] = useState('idle'); // idle | countdown | overtime | completed
+
+  // Resolve effective office end time: user's shift overrides global setting
+  const effectiveEndTime = userShift?.end_time || settings.office_end_time;
+  const shiftLabel = userShift?.name || null;
 
   // Helper: parse "HH:mm" string to today's Date object
   const parseTimeToday = (timeStr) => {
@@ -53,7 +57,7 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut }) {
     // ============ STATE 3: Active session (countdown OR overtime) ============
     const updateTimer = () => {
       const now = new Date();
-      const officeEnd = parseTimeToday(settings.office_end_time);
+      const officeEnd = parseTimeToday(effectiveEndTime);
 
       if (!officeEnd) {
         // Fallback: count up from check-in
@@ -77,7 +81,7 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut }) {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [firstCheckIn, lastCheckOut, settings.office_end_time]);
+  }, [firstCheckIn, lastCheckOut, effectiveEndTime]);
 
   return (
     <div className="text-center">
@@ -121,14 +125,16 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut }) {
       </div>
 
       {/* Helper text */}
-      {mode === 'countdown' && settings.office_end_time && (
+      {mode === 'countdown' && effectiveEndTime && (
         <p className="text-xs text-gray-400 mt-2">
-          Until {formatDisplayTime(settings.office_end_time)}
+          Until {formatDisplayTime(effectiveEndTime)}
+          {shiftLabel && <span className="ml-1">· {shiftLabel}</span>}
         </p>
       )}
-      {mode === 'overtime' && settings.office_end_time && (
+      {mode === 'overtime' && effectiveEndTime && (
         <p className="text-xs text-orange-400 mt-2">
-          Past {formatDisplayTime(settings.office_end_time)}
+          Past {formatDisplayTime(effectiveEndTime)}
+          {shiftLabel && <span className="ml-1">· {shiftLabel}</span>}
         </p>
       )}
     </div>

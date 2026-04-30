@@ -8,6 +8,7 @@ import {
   updateProfile,
   changePassword,
   refreshToken,
+  resetPassword,
 } from '../controllers/auth.Controller.js';
 import { protect } from '../middleware/auth.js';
 
@@ -18,6 +19,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/google', googleLogin);
 router.post('/refresh-token', refreshToken);
+router.post('/reset-password', resetPassword);
 
 // Protected routes (need JWT token)
 router.get('/me', protect, getMe);

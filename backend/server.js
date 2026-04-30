@@ -31,6 +31,7 @@ import attendanceSessionRoutes from "./src/routes/attendanceSession.Routes.js";
 import uploadRoutes from "./src/routes/upload.Routes.js";
 import functionsRoutes from "./src/routes/functions.Routes.js";
 import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
+import shiftRoutes from "./src/routes/shift.Routes.js";
 // Load env FIRST
 
 // Config & middleware imports
@@ -132,6 +133,7 @@ app.get("/api/health", (req, res) => {
 // ==========================================
 app.use("/api/auth", authRoutes);
 app.use("/api/app-settings", appSettingsRoutes);
+app.use("/api/shifts", shiftRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);

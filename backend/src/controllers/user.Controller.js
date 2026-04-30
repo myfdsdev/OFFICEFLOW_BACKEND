@@ -21,6 +21,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 
   const users = await User.find(filter)
     .select('-password')
+    .populate('shift_id')
     .sort(sort)
     .limit(parseInt(limit))
     .skip(skip);
@@ -39,7 +40,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/users/:id
 // @access  Private
 export const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select('-password');
+  const user = await User.findById(req.params.id).select('-password').populate('shift_id');
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -53,13 +54,13 @@ export const getUserById = asyncHandler(async (req, res) => {
 // @access  Private
 export const filterUsers = asyncHandler(async (req, res) => {
   const filter = { ...req.query };
-  
+
   // Remove pagination params from filter
   delete filter.limit;
   delete filter.page;
   delete filter.sort;
 
-  const users = await User.find(filter).select('-password');
+  const users = await User.find(filter).select('-password').populate('shift_id');
   res.json(users);
 });
 
@@ -67,17 +68,51 @@ export const filterUsers = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/:id
 // @access  Private/Admin
 export const updateUser = asyncHandler(async (req, res) => {
-  const { email, password, ...updates } = req.body;
+  const allowed = [
+    'full_name',
+    'role',
+    'department',
+    'employee_id',
+    'mobile_number',
+    'profile_photo',
+    'is_active',
+    'late_threshold_minutes',
+    'half_day_hours',
+    'working_days',
+  ];
 
-  // Don't allow email/password change via this route
+  const updates = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+
+  const before = await User.findById(req.params.id).select('is_active');
+  if (!before) return res.status(404).json({ error: 'User not found' });
+
+  // Self-protection: an admin cannot demote or deactivate themselves
+  if (req.params.id === req.user._id.toString()) {
+    if (updates.role && updates.role !== 'admin') {
+      return res.status(400).json({ error: 'You cannot change your own role' });
+    }
+    if (updates.is_active === false) {
+      return res.status(400).json({ error: 'You cannot deactivate yourself' });
+    }
+  }
+
   const user = await User.findByIdAndUpdate(
     req.params.id,
     updates,
     { new: true, runValidators: true }
-  ).select('-password');
+  ).select('-password').populate('shift_id');
 
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+  // If just deactivated, force-disconnect their sockets
+  if (before.is_active !== false && updates.is_active === false) {
+    try {
+      const { forceDisconnectUser } = await import('../sockets/index.js');
+      forceDisconnectUser(user._id, 'deactivated');
+    } catch (err) {
+      console.error('Failed to force-disconnect user:', err.message);
+    }
   }
 
   res.json({ message: 'User updated', user });
@@ -96,6 +131,13 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
+  }
+
+  try {
+    const { forceDisconnectUser } = await import('../sockets/index.js');
+    forceDisconnectUser(user._id, 'account_deleted');
+  } catch (err) {
+    console.error('Failed to disconnect deleted user:', err.message);
   }
 
   res.json({ message: 'User deleted successfully' });

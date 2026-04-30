@@ -10,6 +10,7 @@ import {
   getUsersForMessaging,
   inviteUser,
 } from '../controllers/user.Controller.js';
+import { sendPasswordResetForUser } from '../controllers/auth.Controller.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -25,6 +26,7 @@ router.get('/filter', filterUsers);
 // Admin only
 router.post('/invite', adminOnly, inviteUser);
 router.put('/:id/role', adminOnly, changeUserRole);
+router.post('/:id/send-password-reset', adminOnly, sendPasswordResetForUser);
 router.delete('/:id', adminOnly, deleteUser);
 
 // General routes

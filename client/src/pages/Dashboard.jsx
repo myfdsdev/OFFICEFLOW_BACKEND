@@ -30,59 +30,7 @@ import LeaveRequestList from '../components/leave/LeaveRequestList';
 import NotificationBell from '../components/notifications/NotificationBell';
 import AttendanceReminderPopup from '../components/attendance/AttendanceReminderPopup';
 import { useCheckInOutReminders } from '../components/hooks/useCheckInOutReminders';
-<<<<<<< HEAD
 import SmartTimer from '../components/dashboard/SmartTimer';
-=======
-
-function LiveTimer({ firstCheckIn, lastCheckOut }) {
-  const [elapsed, setElapsed] = useState('00:00:00');
-
-  useEffect(() => {
-    if (!firstCheckIn || lastCheckOut) {
-      if (lastCheckOut && firstCheckIn) {
-        const diffSeconds = Math.floor(
-          (new Date(lastCheckOut) - new Date(firstCheckIn)) / 1000
-        );
-
-        const hours = Math.floor(diffSeconds / 3600);
-        const minutes = Math.floor((diffSeconds % 3600) / 60);
-        const seconds = diffSeconds % 60;
-
-        setElapsed(
-          `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-        );
-      } else {
-        setElapsed('00:00:00');
-      }
-      return;
-    }
-
-    const updateTimer = () => {
-      const diffSeconds = Math.floor(
-        (new Date() - new Date(firstCheckIn)) / 1000
-      );
-
-      const hours = Math.floor(diffSeconds / 3600);
-      const minutes = Math.floor((diffSeconds % 3600) / 60);
-      const seconds = diffSeconds % 60;
-
-      setElapsed(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      );
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [firstCheckIn, lastCheckOut]);
-
-  return (
-    <div className="text-5xl font-bold text-gray-900 font-mono">
-      {elapsed}
-    </div>
-  );
-}
->>>>>>> 617214efd7bb28f37dbb08d56a2cb0a11203c940
 
 function EmployeePerformanceGraph({ data = [] }) {
   const width = 900;
@@ -346,15 +294,10 @@ export default function Dashboard() {
 
       const now = new Date();
       const clockInTime = format(now, 'HH:mm');
-<<<<<<< HEAD
       const hours = now.getHours();
       const minutes = now.getMinutes();
       const totalMinutes = hours * 60 + minutes;
       
-=======
-      const totalMinutes = now.getHours() * 60 + now.getMinutes();
-
->>>>>>> 617214efd7bb28f37dbb08d56a2cb0a11203c940
       let status = 'present';
       if (totalMinutes > 615) status = 'late';
 
@@ -415,11 +358,7 @@ export default function Dashboard() {
       const now = new Date();
       const checkIn = new Date(todayAttendance.first_check_in);
       const workHours = (now - checkIn) / (1000 * 60 * 60);
-<<<<<<< HEAD
       
-=======
-
->>>>>>> 617214efd7bb28f37dbb08d56a2cb0a11203c940
       let finalStatus = todayAttendance.status;
       if (workHours < 4) finalStatus = 'half_day';
 
@@ -617,15 +556,9 @@ const safeGraphData = Array.from({ length: 7 }).map((_, index) => {
                   </div>
                 )}
 
-<<<<<<< HEAD
                 {/* SmartTimer — countdown to office end, then overtime */}
                 <div className="mt-8">
                   <SmartTimer
-=======
-                <div className="mt-8 text-center">
-                  <p className="text-gray-400 text-sm mb-2">Time Elapsed</p>
-                  <LiveTimer
->>>>>>> 617214efd7bb28f37dbb08d56a2cb0a11203c940
                     firstCheckIn={todayAttendance?.first_check_in}
                     lastCheckOut={todayAttendance?.last_check_out}
                     userShift={user?.shift_id}

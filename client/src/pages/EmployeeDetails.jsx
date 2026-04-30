@@ -424,20 +424,9 @@ export default function EmployeeDetails() {
           />
         </div>
 
-<<<<<<< HEAD
         <div className="mb-6">
           <ManageUserCard employee={employee} />
         </div>
-=======
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mb-8"
-        >
-          <EmployeePerformanceRadar metrics={performanceMetrics} />
-        </motion.div>
->>>>>>> 617214efd7bb28f37dbb08d56a2cb0a11203c940
 
         <div className="grid md:grid-cols-2 gap-6">
           <AttendanceHistory attendance={attendance} />

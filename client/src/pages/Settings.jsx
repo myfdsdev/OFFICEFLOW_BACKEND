@@ -12,12 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Save, Clock, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
-<<<<<<< HEAD
+  
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
-=======
-import AppSettingsForm from '@/components/admin/AppSettingsForm';
->>>>>>> 686fead (feat: implement app settings management with admin controls)
-
 export default function Settings() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,17 +85,17 @@ export default function Settings() {
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center p-8">
           <AlertCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-<<<<<<< HEAD
+  
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Access Denied
           </h2>
           <p className="text-gray-500">
             Only administrators can access settings.
           </p>
-=======
+  
           <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
           <p className="text-lime-100/50">Only administrators can access settings.</p>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+  
         </div>
       </div>
     );
@@ -113,17 +109,10 @@ export default function Settings() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-<<<<<<< HEAD
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Settings
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Configure office hours, attendance rules, and holidays
-          </p>
-=======
+  
           <h1 className="text-2xl md:text-3xl font-bold text-white">Settings</h1>
           <p className="text-lime-100/50 mt-1">Configure office hours, attendance rules, and holidays</p>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+  
         </motion.div>
 
         <div className="space-y-6">
@@ -162,17 +151,17 @@ export default function Settings() {
                     <Input
                       type="time"
                       value={settings.office_start_time}
-<<<<<<< HEAD
+  
                       onChange={(e) =>
                         setSettings({
                           ...settings,
                           office_start_time: e.target.value,
                         })
                       }
-=======
+  
                       onChange={(e) => setSettings({ ...settings, office_start_time: e.target.value })}
                       className="border border-lime-400/10"
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+  
                     />
                   </div>
                   <div className="space-y-2">
@@ -180,17 +169,17 @@ export default function Settings() {
                     <Input
                       type="time"
                       value={settings.office_end_time}
-<<<<<<< HEAD
+  
                       onChange={(e) =>
                         setSettings({
                           ...settings,
                           office_end_time: e.target.value,
                         })
                       }
-=======
+  
                       onChange={(e) => setSettings({ ...settings, office_end_time: e.target.value })}
                       className="border border-lime-400/10"
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+  
                     />
                   </div>
                 </div>
@@ -308,18 +297,18 @@ export default function Settings() {
                             });
                           }
                         }}
-<<<<<<< HEAD
+  
                         className={`p-3 rounded-lg border-2 transition-all ${
                           isSelected
                             ? "border-indigo-600 bg-indigo-50 text-indigo-600 font-semibold"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
-=======
+  
                         className={`p-3 rounded-lg border-2 transition-all ${isSelected
                           ? 'border-indigo-600 bg-lime-400/10 text-lime-300 font-semibold'
                           : 'border-lime-400/15 hover:border-lime-400/20'
                           }`}
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+  
                       >
                         {day}
                       </button>
@@ -347,26 +336,7 @@ export default function Settings() {
               {saving ? "Saving..." : "Save Settings"}
             </Button>
           </motion.div>
-<<<<<<< HEAD
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>App Branding</CardTitle>
-                <CardDescription>Customize how your app looks</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AppSettingsForm />
-              </CardContent>
-            </Card>
-          </motion.div>
-=======
-
           
->>>>>>> 686fead (feat: implement app settings management with admin controls)
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import AppLogo from '@/components/AppLogo';
+import AppLogo from "@/components/AppLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,6 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
-  Calendar,
   FileText,
   Settings,
   LogOut,
@@ -86,33 +85,16 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-<<<<<<< HEAD
-  const navItems = user?.role === "admin" ? adminNavItems : employeeNavItems;
-  const isAdminSection =
-    currentPageName === "AdminDashboard" ||
-    currentPageName === "AttendanceReports" ||
-    currentPageName === "Settings";
-
   const NavLinks = ({ onClick }) => (
     <div className="space-y-4">
-      {/* Admin Section */}
       {user?.role === "admin" && (
         <div>
           <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               Admin Panel
-            </p>
-=======
-  const navItems = user?.role === 'admin' ? adminNavItems : employeeNavItems;
-
-  const NavLinks = ({ onClick }) => (
-    <div className="space-y-4">
-      {user?.role === 'admin' && (
-        <div>
-          <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">Admin Panel</p>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+            </p>   
           </div>
+
           <div className="space-y-1">
             {adminNavItems.slice(0, 3).map((item) => {
               const Icon = item.icon;
@@ -123,38 +105,22 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     to={createPageUrl(item.page)}
                     onClick={onClick}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
                       isActive
-<<<<<<< HEAD
-                        ? "bg-indigo-50 text-indigo-600 font-medium"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-lime-400/10 text-lime-300 font-medium"
+                        : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
                     }`}
                   >
                     <Icon
-                      className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-gray-400"}`}
+                      className={`w-5 h-5 ${
+                        isActive ? "text-lime-300" : "text-lime-100/45"
+                      }`}
                     />
-                    <span
-                      className={`flex-1 whitespace-nowrap ${item.name === "Direct Messages" ? "mr-8" : ""}`}
-                    >
+
+                    <span className="flex-1 whitespace-nowrap">
                       {item.name}
                     </span>
-                    {item.name === "Direct Messages" && user && (
-=======
-                        ? 'bg-lime-400/10 text-lime-300 font-medium'
-                        : 'text-lime-100/55 hover:bg-lime-400/10 hover:text-white'
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-lime-300' : 'text-lime-100/45'}`} />
-                    <span className={`flex-1 whitespace-nowrap ${item.name === 'Direct Messages' ? 'mr-8' : ''}`}>{item.name}</span>
-                    {item.name === 'Direct Messages' && user && (
->>>>>>> 686fead (feat: implement app settings management with admin controls)
-                      <div className="pointer-events-auto">
-                        <NotificationBell
-                          userEmail={user.email}
-                          notificationType="new_message"
-                        />
-                      </div>
-                    )}
+
                     {isActive && <ChevronRight className="w-4 h-4" />}
                   </Link>
                 </div>
@@ -167,15 +133,12 @@ export default function Layout({ children, currentPageName }) {
       <div>
         {user?.role === "admin" && (
           <div className="px-4 py-2">
-<<<<<<< HEAD
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               My Account
             </p>
-=======
-            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">My Account</p>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
           </div>
         )}
+
         <div className="space-y-1">
           {(user?.role === "admin"
             ? adminNavItems.slice(3)
@@ -189,31 +152,27 @@ export default function Layout({ children, currentPageName }) {
                 <Link
                   to={createPageUrl(item.page)}
                   onClick={onClick}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
                     isActive
-<<<<<<< HEAD
-                      ? "bg-indigo-50 text-indigo-600 font-medium"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-lime-400/10 text-lime-300 font-medium"
+                      : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
                   }`}
                 >
                   <Icon
-                    className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-gray-400"}`}
+                    className={`w-5 h-5 ${
+                      isActive ? "text-lime-300" : "text-lime-100/45"
+                    }`}
                   />
+
                   <span
-                    className={`flex-1 whitespace-nowrap ${item.name === "Direct Messages" ? "mr-8" : ""}`}
+                    className={`flex-1 whitespace-nowrap ${
+                      item.name === "Direct Messages" ? "mr-8" : ""
+                    }`}
                   >
                     {item.name}
                   </span>
+
                   {item.name === "Direct Messages" && user && (
-=======
-                      ? 'bg-lime-400/10 text-lime-300 font-medium'
-                      : 'text-lime-100/55 hover:bg-lime-400/10 hover:text-white'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-lime-300' : 'text-lime-100/45'}`} />
-                  <span className={`flex-1 whitespace-nowrap ${item.name === 'Direct Messages' ? 'mr-8' : ''}`}>{item.name}</span>
-                  {item.name === 'Direct Messages' && user && (
->>>>>>> 686fead (feat: implement app settings management with admin controls)
                     <div className="pointer-events-auto">
                       <NotificationBell
                         userEmail={user.email}
@@ -221,6 +180,7 @@ export default function Layout({ children, currentPageName }) {
                       />
                     </div>
                   )}
+
                   {isActive && <ChevronRight className="w-4 h-4" />}
                 </Link>
               </div>
@@ -234,14 +194,10 @@ export default function Layout({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-black text-white">
       <NotificationPermissionPrompt />
-      
-      {/* Desktop Sidebar - Dark Theme */}
+
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 bg-[#020806]/90 border-r border-lime-400/15 p-4">
-        <div className="flex items-center gap-3 px-4 py-4 mb-6">
-          <div className="w-10 h-10 bg-lime-400 rounded-xl flex items-center justify-center shadow-[0_0_28px_rgba(132,255,0,0.16)] shadow-lime-400/20">
-            <Clock className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xl font-bold text-white tracking-tight">AttendEase</span>
+        <div className="px-4 py-4 mb-6">
+          <AppLogo size="md" />
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -256,57 +212,48 @@ export default function Layout({ children, currentPageName }) {
                   <div className="relative">
                     <Avatar className="w-10 h-10 border border-lime-400/20">
                       {user.profile_photo ? (
-<<<<<<< HEAD
                         <AvatarImage
                           src={user.profile_photo}
                           alt={user.full_name}
+                          className="object-cover"
                         />
-=======
-                        <AvatarImage src={user.profile_photo} alt={user.full_name} className="object-cover" />
->>>>>>> 686fead (feat: implement app settings management with admin controls)
                       ) : (
                         <AvatarFallback className="bg-[#061006]/80 text-lime-300 font-semibold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       )}
                     </Avatar>
+
                     <div className="absolute -bottom-0.5 -right-0.5">
                       <OnlineStatusIndicator isOnline={true} size="sm" />
                     </div>
                   </div>
+
                   <div className="text-left flex-1 min-w-0">
-<<<<<<< HEAD
-                    <p className="font-medium text-gray-900 truncate">
+                    <p className="font-medium text-white truncate">
                       {user.full_name}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-lime-100/45 truncate">
                       {user.email}
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem className="text-gray-500 text-xs">
+
+              <DropdownMenuContent
+                align="end"
+                className="w-56 bg-[#020806]/90 border-lime-400/15 text-white"
+              >
+                <DropdownMenuItem className="text-lime-100/45 text-xs focus:bg-lime-400/10">
                   {user.role === "admin" ? "Administrator" : "Employee"}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+
+                <DropdownMenuSeparator className="bg-[#061006]/80" />
+
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="text-rose-600"
+                  className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer"
                 >
-=======
-                    <p className="font-medium text-white truncate">{user.full_name}</p>
-                    <p className="text-xs text-lime-100/45 truncate">{user.email}</p>
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-[#020806]/90 border-lime-400/15 text-white">
-                <DropdownMenuItem className="text-lime-100/45 text-xs focus:bg-lime-400/10">
-                  {user.role === 'admin' ? 'Administrator' : 'Employee'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-[#061006]/80" />
-                <DropdownMenuItem onClick={handleLogout} className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer">
->>>>>>> 686fead (feat: implement app settings management with admin controls)
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </DropdownMenuItem>
@@ -316,74 +263,67 @@ export default function Layout({ children, currentPageName }) {
         )}
       </aside>
 
-      {/* Mobile Header - Dark Theme */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-[#020806]/90/80 backdrop-blur-md border-b border-lime-400/15 z-50">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-[#020806]/90 backdrop-blur-md border-b border-lime-400/15 z-50">
         <div className="flex items-center justify-between px-4 py-3">
-<<<<<<< HEAD
-        
-          <div className="px-4 py-4 mb-6">
-            <AppLogo size="md" />
-=======
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-bold text-white">AttendEase</span>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
-          </div>
+          <AppLogo size="sm" />
 
           <div className="flex items-center gap-2">
             {user && <NotificationBell userEmail={user.email} />}
+
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-lime-100/75 hover:bg-[#061006]/80">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-lime-100/75 hover:bg-[#061006]/80"
+                >
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-72 p-0 bg-[#020806]/90 border-lime-400/15">
+
+              <SheetContent
+                side="right"
+                className="w-72 p-0 bg-[#020806]/90 border-lime-400/15"
+              >
                 <div className="p-4 border-b border-lime-400/15">
                   {user && (
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <Avatar className="w-10 h-10 border border-lime-400/20">
                           {user.profile_photo ? (
-<<<<<<< HEAD
                             <AvatarImage
                               src={user.profile_photo}
                               alt={user.full_name}
+                              className="object-cover"
                             />
-=======
-                            <AvatarImage src={user.profile_photo} alt={user.full_name} className="object-cover" />
->>>>>>> 686fead (feat: implement app settings management with admin controls)
                           ) : (
                             <AvatarFallback className="bg-[#061006]/80 text-lime-300 font-semibold">
                               {getInitials(user.full_name)}
                             </AvatarFallback>
                           )}
                         </Avatar>
+
                         <div className="absolute -bottom-0.5 -right-0.5">
                           <OnlineStatusIndicator isOnline={true} size="sm" />
                         </div>
                       </div>
+
                       <div>
-<<<<<<< HEAD
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-white">
                           {user.full_name}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-lime-100/45">
                           {user.role === "admin" ? "Admin" : "Employee"}
                         </p>
-=======
-                        <p className="font-medium text-white">{user.full_name}</p>
-                        <p className="text-xs text-lime-100/45">{user.role === 'admin' ? 'Admin' : 'Employee'}</p>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
                       </div>
                     </div>
                   )}
                 </div>
+
                 <nav className="p-4 overflow-y-auto max-h-[calc(100vh-180px)]">
                   <NavLinks onClick={() => setMobileMenuOpen(false)} />
                 </nav>
+
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-lime-400/15 bg-[#020806]/90">
                   <Button
                     variant="outline"
@@ -400,15 +340,8 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="lg:ml-72 pt-16 lg:pt-0">
-<<<<<<< HEAD
-        <div className="min-h-screen">{children}</div>
-=======
-        <div className="min-h-screen bg-black">
-          {children}
-        </div>
->>>>>>> 686fead (feat: implement app settings management with admin controls)
+        <div className="min-h-screen bg-black">{children}</div>
       </main>
     </div>
   );

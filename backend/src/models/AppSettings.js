@@ -63,12 +63,6 @@ const appSettingsSchema = new mongoose.Schema({
 
 // Helper to get-or-create the singleton settings document
 appSettingsSchema.statics.getSingleton = async function () {
- HEAD
-  let settings = await this.findOne();
-  if (!settings) {
-    settings = await this.create({});
-  }
-  return settings;
 
   let settings = await this.findOne();
   if (!settings) {

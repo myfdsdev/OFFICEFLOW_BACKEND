@@ -14,6 +14,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('notice') || '';
+    } catch {
+      return '';
+    }
+  });
 
   const redirectAfterLogin = (user) => {
     if (user.mobile_number && user.employee_id && user.department) {
@@ -51,7 +59,10 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    setErrorMsg('');
+
     if (!email || !password) {
+      setErrorMsg('Please fill in all fields');
       toast.error('Please fill in all fields');
       return;
     }
@@ -63,7 +74,9 @@ export default function Login() {
       toast.success('Welcome back!');
       redirectAfterLogin(result.user);
     } catch (err) {
-      toast.error(err?.error || 'Login failed');
+      const msg = err?.error || err?.message || 'Wrong email or password';
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -109,6 +122,16 @@ export default function Login() {
               </span>
             </div>
           </div>
+
+          {/* INLINE ERROR */}
+          {errorMsg && (
+            <div
+              role="alert"
+              className="mb-4 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-sm text-red-700"
+            >
+              {errorMsg}
+            </div>
+          )}
 
           {/* EMAIL LOGIN FORM */}
           <form onSubmit={handleSubmit} className="space-y-4">

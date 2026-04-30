@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Save, Clock, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
+import CustomShifts from "@/components/admin/CustomShifts";
 import { toast } from "react-hot-toast";
 
 export default function Settings() {
@@ -183,6 +184,15 @@ export default function Settings() {
                 </p>
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Custom Shifts — manage named shifts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <CustomShifts />
           </motion.div>
 
           {/* Attendance Rules — saves to user */}

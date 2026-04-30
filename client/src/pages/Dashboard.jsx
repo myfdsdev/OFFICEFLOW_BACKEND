@@ -322,9 +322,10 @@ export default function Dashboard() {
 
                 {/* SmartTimer — countdown to office end, then overtime */}
                 <div className="mt-8">
-                  <SmartTimer 
+                  <SmartTimer
                     firstCheckIn={todayAttendance?.first_check_in}
                     lastCheckOut={todayAttendance?.last_check_out}
+                    userShift={user?.shift_id}
                   />
                 </div>
               </div>

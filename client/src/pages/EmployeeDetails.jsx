@@ -13,6 +13,7 @@ import { createPageUrl } from "@/utils";
 import StatsCard from '../components/attendance/StatsCard';
 import AttendanceHistory from '../components/attendance/AttendanceHistory';
 import LeaveRequestList from '../components/leave/LeaveRequestList';
+import ManageUserCard from '../components/admin/ManageUserCard';
 
 export default function EmployeeDetails() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -175,6 +176,10 @@ export default function EmployeeDetails() {
             color="blue"
             delay={0.4}
           />
+        </div>
+
+        <div className="mb-6">
+          <ManageUserCard employee={employee} />
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">

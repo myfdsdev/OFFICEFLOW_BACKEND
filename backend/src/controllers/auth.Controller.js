@@ -1,7 +1,8 @@
+import crypto from 'crypto';
 import User from '../models/User.js';
 import { generateAccessToken, generateRefreshToken } from '../utils/generateToken.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import { sendWelcomeEmail } from '../utils/sendEmail.js';
+import { sendWelcomeEmail, sendEmail } from '../utils/sendEmail.js';
 import { OAuth2Client } from 'google-auth-library';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -26,6 +27,12 @@ const buildUserResponse = (user) => ({
   late_threshold_minutes: user.late_threshold_minutes,
   half_day_hours: user.half_day_hours,
   working_days: user.working_days,
+  shift_id: user.shift_id,
+  is_active: user.is_active,
+  auth_provider: user.auth_provider,
+  last_active: user.last_active,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
 });
 
 // ==========================================
@@ -100,6 +107,10 @@ export const login = asyncHandler(async (req, res) => {
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+
+  if (user.is_active === false) {
+    return res.status(403).json({ error: 'Your account has been deactivated. Contact your administrator.' });
+  }
 
   user.is_online = true;
   user.last_active = new Date();
@@ -210,7 +221,7 @@ export const googleLogin = asyncHandler(async (req, res) => {
 // @route   GET /api/auth/me
 // ==========================================
 export const getMe = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select('-password');
+  const user = await User.findById(req.user._id).select('-password').populate('shift_id');
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(buildUserResponse(user));
 });
@@ -284,6 +295,83 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.password = newPassword;
   await user.save();
   res.json({ message: 'Password changed successfully' });
+});
+
+// ==========================================
+// @desc    Admin sends a password reset email to a user
+// @route   POST /api/users/:id/send-password-reset
+// ==========================================
+export const sendPasswordResetForUser = asyncHandler(async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admins can trigger password resets' });
+  }
+
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (user.auth_provider === 'google') {
+    return res.status(400).json({ error: 'Google-authenticated users cannot reset password' });
+  }
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashed = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  user.password_reset_token = hashed;
+  user.password_reset_expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await user.save();
+
+  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim();
+  const resetUrl = `${frontendUrl}/ResetPassword?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your AttendEase password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2>Password reset requested</h2>
+          <p>Hi ${user.full_name || ''},</p>
+          <p>An administrator has initiated a password reset for your AttendEase account.</p>
+          <p><a href="${resetUrl}" style="display:inline-block;background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;">Reset password</a></p>
+          <p style="color:#666;font-size:14px;">This link expires in 1 hour. If you did not expect this, ignore this email.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('Password reset email failed:', err.message);
+    return res.status(500).json({ error: 'Failed to send reset email' });
+  }
+
+  res.json({ message: 'Password reset email sent' });
+});
+
+// ==========================================
+// @desc    Public — complete password reset using token
+// @route   POST /api/auth/reset-password
+// ==========================================
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, email, newPassword } = req.body;
+  if (!token || !email || !newPassword) {
+    return res.status(400).json({ error: 'token, email and newPassword are required' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  const hashed = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({
+    email: email.toLowerCase(),
+    password_reset_token: hashed,
+    password_reset_expires: { $gt: new Date() },
+  }).select('+password +password_reset_token +password_reset_expires');
+
+  if (!user) return res.status(400).json({ error: 'Invalid or expired reset link' });
+
+  user.password = newPassword;
+  user.password_reset_token = null;
+  user.password_reset_expires = null;
+  await user.save();
+
+  res.json({ message: 'Password reset successful' });
 });
 
 // ==========================================

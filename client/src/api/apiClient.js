@@ -366,6 +366,46 @@ const users = {
     });
     return res.data;
   },
+  adminUpdate: async (userId, updates) => {
+    const res = await api.put(`/users/${userId}`, updates);
+    return res.data.user || res.data;
+  },
+  adminDelete: async (userId) => {
+    const res = await api.delete(`/users/${userId}`);
+    return res.data;
+  },
+  sendPasswordReset: async (userId) => {
+    const res = await api.post(`/users/${userId}/send-password-reset`);
+    return res.data;
+  },
+  resetPassword: async ({ token, email, newPassword }) => {
+    const res = await api.post("/auth/reset-password", { token, email, newPassword });
+    return res.data;
+  },
+};
+
+// ========== SHIFTS ==========
+const shifts = {
+  list: async () => {
+    const res = await api.get("/shifts");
+    return res.data;
+  },
+  create: async ({ name, start_time, end_time }) => {
+    const res = await api.post("/shifts", { name, start_time, end_time });
+    return res.data;
+  },
+  update: async (id, data) => {
+    const res = await api.put(`/shifts/${id}`, data);
+    return res.data;
+  },
+  remove: async (id) => {
+    const res = await api.delete(`/shifts/${id}`);
+    return res.data;
+  },
+  assignToUser: async (userId, shiftId) => {
+    const res = await api.put(`/shifts/assign/${userId}`, { shift_id: shiftId });
+    return res.data;
+  },
 };
 
 // ========== APP LOGS (no-op) ==========
@@ -387,6 +427,7 @@ export const base44 = {
   integrations,
   upload,
   users,
+  shifts,
   appLogs,
 };
 

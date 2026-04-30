@@ -144,3 +144,12 @@ export const emitNotification = (userEmail, notification) => {
     })
     .catch(() => {});
 };
+
+// Force-disconnect a user's sockets (called when admin deactivates/deletes them)
+export const forceDisconnectUser = (userId, reason = 'force_logout') => {
+  const io = getIO();
+  if (!io) return;
+  const room = `user_${userId}`;
+  io.to(room).emit('force_logout', { reason });
+  io.in(room).disconnectSockets(true);
+};

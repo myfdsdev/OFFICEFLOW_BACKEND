@@ -72,6 +72,22 @@ export const connectSocket = () => {
     notifyEntity('User', { type: 'update', data });
   });
 
+  // === Force logout (admin deactivated/deleted this account) ===
+  socket.on('force_logout', (payload) => {
+    console.warn('[Socket] Force logout:', payload?.reason);
+    try {
+      localStorage.removeItem('workflow_token');
+    } catch {}
+    if (socket) {
+      socket.disconnect();
+      socket = null;
+    }
+    const reason = payload?.reason === 'account_deleted'
+      ? 'Your account was deleted by an administrator.'
+      : 'Your account has been deactivated.';
+    window.location.href = `/Login?notice=${encodeURIComponent(reason)}`;
+  });
+
   return socket;
 };
 

@@ -32,6 +32,7 @@ import uploadRoutes from "./src/routes/upload.Routes.js";
 import functionsRoutes from "./src/routes/functions.Routes.js";
 import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
 import shiftRoutes from "./src/routes/shift.Routes.js";
+import activityRoutes from "./src/routes/activity.Routes.js";
 // Load env FIRST
 
 // Config & middleware imports
@@ -151,6 +152,7 @@ app.use("/api/message-reminders", messageReminderRoutes);
 app.use("/api/attendance-sessions", attendanceSessionRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/functions", functionsRoutes);
+app.use("/api/activity", activityRoutes);
 
 // ==========================================
 // ERROR HANDLING (must be last!)

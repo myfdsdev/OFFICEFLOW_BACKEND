@@ -92,6 +92,53 @@ export const sendPasswordResetEmail = async (to, resetLink) => {
   });
 };
 
+export const sendAutoCheckoutEmail = async (to, name, checkoutTime, workHours, idleHours) => {
+  return sendEmail({
+    to,
+    subject: 'You were auto-checked out due to inactivity',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #f59e0b, #ef4444); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">⏰ Auto Check-out</h1>
+        </div>
+        <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="color: #1f2937; font-size: 16px;">Hi ${name},</p>
+          <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+            We detected you were inactive for <strong>${idleHours} hours</strong>, so we automatically checked you out.
+          </p>
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Check-out time:</strong> ${new Date(checkoutTime).toLocaleString()}</p>
+            <p style="margin: 5px 0;"><strong>Total hours worked:</strong> ${workHours} hrs</p>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">
+            Your check-out time is recorded as your last detected activity, not when the system noticed.
+            If this was a mistake, please contact your administrator.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
+export const sendAutoCheckoutWarningEmail = async (to, name, minutesLeft) => {
+  return sendEmail({
+    to,
+    subject: `⚠️ You will be auto-checked out in ${minutesLeft} minutes`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #f59e0b;">⏰ Inactivity Warning</h2>
+        <p style="color: #1f2937;">Hi ${name},</p>
+        <p style="color: #4b5563;">
+          You haven't been active for a while. To stay checked-in, just move your mouse or click anywhere in AttendEase within the next <strong>${minutesLeft} minutes</strong>.
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">
+          Otherwise we'll automatically check you out using your last activity time.
+        </p>
+      </div>
+    `,
+  });
+};
+
 export const sendLeaveApprovalEmail = async (
   to,
   name,

@@ -11,7 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Save, Clock, Calendar } from "lucide-react";
+import { AlertCircle, Save, Clock, Calendar, LogOut } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
 import CustomShifts from "@/components/admin/CustomShifts";
@@ -28,6 +29,9 @@ export default function Settings() {
     late_threshold_minutes: 15,
     half_day_hours: 4,
     working_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    auto_checkout_enabled: true,
+    auto_checkout_hours: 2,
+    auto_checkout_warning_minutes: 20,
   });
   const [saving, setSaving] = useState(false);
 
@@ -62,9 +66,20 @@ export default function Settings() {
         ...prev,
         office_start_time: appSettings.office_start_time || "09:00",
         office_end_time: appSettings.office_end_time || "18:00",
+        auto_checkout_enabled:
+          appSettings.auto_checkout_enabled ?? true,
+        auto_checkout_hours: appSettings.auto_checkout_hours ?? 2,
+        auto_checkout_warning_minutes:
+          appSettings.auto_checkout_warning_minutes ?? 20,
       }));
     }
-  }, [appSettings.office_start_time, appSettings.office_end_time]);
+  }, [
+    appSettings.office_start_time,
+    appSettings.office_end_time,
+    appSettings.auto_checkout_enabled,
+    appSettings.auto_checkout_hours,
+    appSettings.auto_checkout_warning_minutes,
+  ]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -73,6 +88,11 @@ export default function Settings() {
       await updateAppSettings({
         office_start_time: settings.office_start_time,
         office_end_time: settings.office_end_time,
+        auto_checkout_enabled: settings.auto_checkout_enabled,
+        auto_checkout_hours: Number(settings.auto_checkout_hours),
+        auto_checkout_warning_minutes: Number(
+          settings.auto_checkout_warning_minutes,
+        ),
       });
 
       // Save attendance rules to user (admin's preferences)
@@ -250,6 +270,89 @@ export default function Settings() {
                     Working less than this many hours will be marked as half day
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Auto-Checkout — saves to AppSettings (global) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LogOut className="w-5 h-5 text-indigo-600" />
+                  Auto Check-out
+                </CardTitle>
+                <CardDescription>
+                  Automatically check out users who go inactive for too long
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      Enable Auto Check-out
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      System will check out idle users automatically
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.auto_checkout_enabled}
+                    onCheckedChange={(v) =>
+                      setSettings({ ...settings, auto_checkout_enabled: v })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Auto-checkout after (hours of inactivity)</Label>
+                    <Input
+                      type="number"
+                      min="0.25"
+                      max="24"
+                      step="0.25"
+                      value={settings.auto_checkout_hours}
+                      disabled={!settings.auto_checkout_enabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          auto_checkout_hours: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-gray-500">
+                      Default: 2 hours
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Warn user (minutes before checkout)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={settings.auto_checkout_warning_minutes}
+                      disabled={!settings.auto_checkout_enabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          auto_checkout_warning_minutes:
+                            parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-gray-500">
+                      Default: 20 minutes before
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-600">
+                  ⏱️ Checkout time = user's <strong>last detected activity</strong>, not when the system noticed (fair time).
+                </p>
               </CardContent>
             </Card>
           </motion.div>

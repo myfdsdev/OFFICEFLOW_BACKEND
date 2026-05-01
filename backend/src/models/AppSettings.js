@@ -33,6 +33,23 @@ const appSettingsSchema = new mongoose.Schema({
     type: String,
     default: '18:00', // 24h format HH:mm
   },
+  // ===== Auto-Checkout =====
+  auto_checkout_enabled: {
+    type: Boolean,
+    default: true,
+  },
+  auto_checkout_hours: {
+    type: Number,
+    default: 2, // Hours of inactivity before auto-checkout
+    min: 0.25,
+    max: 24,
+  },
+  auto_checkout_warning_minutes: {
+    type: Number,
+    default: 20, // Minutes BEFORE auto-checkout to send warning
+    min: 1,
+    max: 120,
+  },
   // Tracking
   updated_by: {
     type: String,

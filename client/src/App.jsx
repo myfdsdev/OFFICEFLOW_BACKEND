@@ -13,6 +13,7 @@ import {
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
+import { ActivityTrackerProvider } from "@/lib/ActivityTracker";
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -150,7 +151,9 @@ function App() {
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <NavigationTracker />
-            <AuthenticatedApp />
+            <ActivityTrackerProvider>
+              <AuthenticatedApp />
+            </ActivityTrackerProvider>
           </Router>
           <Toaster />
         </QueryClientProvider>

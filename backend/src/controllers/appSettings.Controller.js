@@ -27,6 +27,9 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
     'primary_color',
     'office_start_time',
     'office_end_time',
+    'auto_checkout_enabled',
+    'auto_checkout_hours',
+    'auto_checkout_warning_minutes',
   ];
 
   allowedFields.forEach((field) => {

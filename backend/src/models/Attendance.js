@@ -22,6 +22,11 @@ const attendanceSchema = new mongoose.Schema({
   },
   has_active_session: { type: Boolean, default: false },
   work_hours: { type: Number, default: 0 },
+  checkout_type: {
+    type: String,
+    enum: ['manual', 'auto', 'admin'],
+    default: 'manual',
+  },
   location: { type: String, default: '' },
   notes: { type: String, default: '' },
 }, { timestamps: true });

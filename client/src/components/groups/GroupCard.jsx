@@ -1,8 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Users, Calendar, MoreVertical } from "lucide-react";
+import { Users, MoreVertical } from "lucide-react";
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import {

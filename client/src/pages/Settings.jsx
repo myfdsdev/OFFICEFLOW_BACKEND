@@ -1,6 +1,7 @@
 // settings
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 import {
   Card,
   CardContent,
@@ -11,42 +12,44 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Save, Clock, Calendar } from "lucide-react";
+import { AlertCircle, Save, Clock, Calendar, LogOut } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
   
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
 export default function Settings() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { settings: appSettings, updateSettings: updateAppSettings } = useAppSettings();
+
   const [settings, setSettings] = useState({
     office_start_time: "09:00",
     office_end_time: "18:00",
     late_threshold_minutes: 15,
     half_day_hours: 4,
     working_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    auto_checkout_enabled: true,
+    auto_checkout_hours: 2,
+    auto_checkout_warning_minutes: 20,
   });
   const [saving, setSaving] = useState(false);
 
+  // Load user info + attendance rules (per-user)
   useEffect(() => {
     base44.auth
       .me()
       .then((userData) => {
         setUser(userData);
-        // Load settings from user
-        if (userData?.office_start_time) {
-          setSettings({
-            office_start_time: userData.office_start_time || "09:00",
-            office_end_time: userData.office_end_time || "18:00",
+        if (userData) {
+          setSettings((prev) => ({
+            ...prev,
             late_threshold_minutes: userData.late_threshold_minutes || 15,
             half_day_hours: userData.half_day_hours || 4,
-            working_days: userData.working_days || [
-              "monday",
-              "tuesday",
-              "wednesday",
-              "thursday",
-              "friday",
-            ],
-          });
+            working_days:
+              userData.working_days?.length > 0
+                ? userData.working_days
+                : ["monday", "tuesday", "wednesday", "thursday", "friday"],
+          }));
         }
         setLoading(false);
       })
@@ -55,21 +58,57 @@ export default function Settings() {
       });
   }, []);
 
+  // Sync office hours from GLOBAL AppSettings (not from user)
+  useEffect(() => {
+    if (appSettings) {
+      setSettings((prev) => ({
+        ...prev,
+        office_start_time: appSettings.office_start_time || "09:00",
+        office_end_time: appSettings.office_end_time || "18:00",
+        auto_checkout_enabled:
+          appSettings.auto_checkout_enabled ?? true,
+        auto_checkout_hours: appSettings.auto_checkout_hours ?? 2,
+        auto_checkout_warning_minutes:
+          appSettings.auto_checkout_warning_minutes ?? 20,
+      }));
+    }
+  }, [
+    appSettings.office_start_time,
+    appSettings.office_end_time,
+    appSettings.auto_checkout_enabled,
+    appSettings.auto_checkout_hours,
+    appSettings.auto_checkout_warning_minutes,
+  ]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await base44.auth.updateMe({
+      // Save office hours GLOBALLY to AppSettings (visible to ALL users)
+      await updateAppSettings({
         office_start_time: settings.office_start_time,
         office_end_time: settings.office_end_time,
+        auto_checkout_enabled: settings.auto_checkout_enabled,
+        auto_checkout_hours: Number(settings.auto_checkout_hours),
+        auto_checkout_warning_minutes: Number(
+          settings.auto_checkout_warning_minutes,
+        ),
+      });
+
+      // Save attendance rules to user (admin's preferences)
+      await base44.auth.updateMe({
         late_threshold_minutes: settings.late_threshold_minutes,
         half_day_hours: settings.half_day_hours,
         working_days: settings.working_days,
       });
-      setSaving(false);
-      alert("Settings saved successfully!");
+
+      toast.success("Settings saved successfully!");
     } catch (error) {
+      toast.error(
+        "Failed to save: " +
+          (error?.response?.data?.error || error?.message || "Unknown error"),
+      );
+    } finally {
       setSaving(false);
-      alert("Failed to save settings: " + error.message);
     }
   };
 
@@ -117,7 +156,7 @@ export default function Settings() {
         </motion.div>
 
         <div className="space-y-6">
-          {/* Office Hours */}
+          {/* Office Hours — saves to AppSettings (global) */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -142,7 +181,7 @@ export default function Settings() {
                   Office Hours
                 </CardTitle>
                 <CardDescription>
-                  Set standard office working hours
+                  Standard office working hours (applies to ALL employees globally)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -184,11 +223,23 @@ export default function Settings() {
                     />
                   </div>
                 </div>
+                <p className="text-xs text-gray-500">
+                  ⏱️ Dashboard timer counts DOWN until end time, then OVERTIME starts
+                </p>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Attendance Rules */}
+          {/* Custom Shifts — manage named shifts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <CustomShifts />
+          </motion.div>
+
+          {/* Attendance Rules — saves to user */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -213,7 +264,8 @@ export default function Settings() {
                     onChange={(e) =>
                       setSettings({
                         ...settings,
-                        late_threshold_minutes: parseInt(e.target.value),
+                        late_threshold_minutes:
+                          parseInt(e.target.value) || 0,
                       })
                     }
                     min="1"
@@ -233,7 +285,7 @@ export default function Settings() {
                     onChange={(e) =>
                       setSettings({
                         ...settings,
-                        half_day_hours: parseInt(e.target.value),
+                        half_day_hours: parseFloat(e.target.value) || 0,
                       })
                     }
                     min="1"
@@ -248,7 +300,90 @@ export default function Settings() {
             </Card>
           </motion.div>
 
-          {/* Working Days */}
+          {/* Auto-Checkout — saves to AppSettings (global) */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LogOut className="w-5 h-5 text-indigo-600" />
+                  Auto Check-out
+                </CardTitle>
+                <CardDescription>
+                  Automatically check out users who go inactive for too long
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      Enable Auto Check-out
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      System will check out idle users automatically
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.auto_checkout_enabled}
+                    onCheckedChange={(v) =>
+                      setSettings({ ...settings, auto_checkout_enabled: v })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Auto-checkout after (hours of inactivity)</Label>
+                    <Input
+                      type="number"
+                      min="0.25"
+                      max="24"
+                      step="0.25"
+                      value={settings.auto_checkout_hours}
+                      disabled={!settings.auto_checkout_enabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          auto_checkout_hours: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-gray-500">
+                      Default: 2 hours
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Warn user (minutes before checkout)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={settings.auto_checkout_warning_minutes}
+                      disabled={!settings.auto_checkout_enabled}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          auto_checkout_warning_minutes:
+                            parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-gray-500">
+                      Default: 20 minutes before
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-amber-600">
+                  ⏱️ Checkout time = user's <strong>last detected activity</strong>, not when the system noticed (fair time).
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Working Days — saves to user */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -280,6 +415,7 @@ export default function Settings() {
                     return (
                       <button
                         key={day}
+                        type="button"
                         onClick={() => {
                           if (isSelected) {
                             setSettings({

@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
-import { Users, Mail, Shield, User } from "lucide-react";
+import { Users, Mail, Shield, User, Search, Clock4, PowerOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { formatDistanceToNow } from "date-fns";
 import OnlineStatusIndicator from './OnlineStatusIndicator';
 
 export default function EmployeeList({ employees, todayAttendance = [] }) {
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
 
   useEffect(() => {
-    // Initial state from props
     setOnlineUsers(employees);
 
-    // Subscribe to real-time user updates
     const unsubscribe = base44.entities.User.subscribe((event) => {
       if (event.type === 'update') {
-        setOnlineUsers(prev => 
+        setOnlineUsers(prev =>
           prev.map(u => u.id === event.id ? event.data : u)
         );
       }
@@ -52,6 +54,29 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
     on_leave: "bg-blue-100 text-blue-700",
   };
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return employees.filter((e) => {
+      if (roleFilter !== 'all' && e.role !== roleFilter) return false;
+      if (!q) return true;
+      return (
+        e.full_name?.toLowerCase().includes(q) ||
+        e.email?.toLowerCase().includes(q) ||
+        e.employee_id?.toLowerCase().includes(q) ||
+        e.department?.toLowerCase().includes(q)
+      );
+    });
+  }, [employees, search, roleFilter]);
+
+  const formatRelative = (d) => {
+    if (!d) return '—';
+    try {
+      return formatDistanceToNow(new Date(d), { addSuffix: true });
+    } catch {
+      return '—';
+    }
+  };
+
   return (
     <Card className="border border-lime-400/15 bg-black">
       <CardHeader className="pb-4">
@@ -65,10 +90,11 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
           {employees.length === 0 ? (
             <p className="text-lime-100/35 text-center py-8">No employees found</p>
           ) : (
-            employees.map((employee, index) => {
+            filtered.map((employee, index) => {
               const status = getTodayStatus(employee.email);
               const isOnline = getUserOnlineStatus(employee.email);
-              
+              const isInactive = employee.is_active === false;
+
               return (
                 <motion.div
                   key={employee.id}

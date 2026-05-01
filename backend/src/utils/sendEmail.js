@@ -1,45 +1,38 @@
-import transporter from "../config/email.js";
+import SibApiV3Sdk from "sib-api-v3-sdk";
+import apiInstance from "../config/email.js";
 
 export const sendEmail = async ({ to, subject, html, text }) => {
-  if (!transporter) {
-    console.log(`⚠️  Email skipped (transporter not ready): ${subject} → ${to}`);
+  if (!apiInstance) {
+    console.log(`⚠️  Email skipped (Brevo not configured): ${subject} → ${to}`);
     return null;
   }
 
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  if (!from) {
-    console.error(`❌ Cannot send email: SMTP_FROM and SMTP_USER both missing!`);
-    return null;
-  }
+  const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const fromName = process.env.SMTP_FROM_NAME || "AttendEase";
 
-  if (!to) {
-    console.error(`❌ Cannot send email: no recipient (to) provided`);
+  if (!fromEmail) {
+    console.error(`❌ Cannot send email: SMTP_FROM not set!`);
     return null;
   }
 
   try {
-    console.log(`📤 Sending email...`);
-    console.log(`   FROM: ${from}`);
-    console.log(`   TO: ${to}`);
-    console.log(`   SUBJECT: ${subject}`);
+    console.log(`📤 Sending via Brevo API to ${to}...`);
 
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      html,
-      text: text || html.replace(/<[^>]*>/g, ""),
-    });
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = html;
+    sendSmtpEmail.textContent = text || html.replace(/<[^>]*>/g, "");
+    sendSmtpEmail.sender = { name: fromName, email: fromEmail };
+    sendSmtpEmail.to = [{ email: to }];
 
-    console.log(`✅ Email sent! ID: ${info.messageId}`);
-    if (info.accepted?.length) console.log(`   Accepted: ${info.accepted.join(", ")}`);
-    if (info.rejected?.length) console.log(`   ⚠️ Rejected: ${info.rejected.join(", ")}`);
-    if (info.response) console.log(`   Server response: ${info.response}`);
-
-    return info;
+    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Email sent! ID: ${result.body?.messageId || "unknown"}`);
+    return result;
   } catch (error) {
     console.error(`❌ Email send error:`, error.message);
-    console.error(`   Full error:`, error);
+    if (error.response?.body) {
+      console.error(`   Brevo response:`, JSON.stringify(error.response.body));
+    }
     throw error;
   }
 };
@@ -62,7 +55,7 @@ export const sendWelcomeEmail = async (to, name) => {
             You can now log in and start tracking attendance, managing projects, and connecting with your team.
           </p>
           <div style="margin: 30px 0; text-align: center;">
-            <a href="${process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:5173'}/Welcome"
+            <a href="${process.env.FRONTEND_URL?.split(",")[0] || "http://localhost:5173"}/Welcome"
                style="background: #6366f1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
               Login Now
             </a>
@@ -99,14 +92,68 @@ export const sendPasswordResetEmail = async (to, resetLink) => {
   });
 };
 
-export const sendLeaveApprovalEmail = async (to, name, leaveType, startDate, endDate, status) => {
-  const isApproved = status === 'approved';
+export const sendAutoCheckoutEmail = async (to, name, checkoutTime, workHours, idleHours) => {
   return sendEmail({
     to,
-    subject: `Leave Request ${isApproved ? 'Approved ✅' : 'Rejected ❌'}`,
+    subject: 'You were auto-checked out due to inactivity',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: ${isApproved ? '#10b981' : '#ef4444'};">
+        <div style="background: linear-gradient(135deg, #f59e0b, #ef4444); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">⏰ Auto Check-out</h1>
+        </div>
+        <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="color: #1f2937; font-size: 16px;">Hi ${name},</p>
+          <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+            We detected you were inactive for <strong>${idleHours} hours</strong>, so we automatically checked you out.
+          </p>
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 5px 0;"><strong>Check-out time:</strong> ${new Date(checkoutTime).toLocaleString()}</p>
+            <p style="margin: 5px 0;"><strong>Total hours worked:</strong> ${workHours} hrs</p>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">
+            Your check-out time is recorded as your last detected activity, not when the system noticed.
+            If this was a mistake, please contact your administrator.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};
+
+export const sendAutoCheckoutWarningEmail = async (to, name, minutesLeft) => {
+  return sendEmail({
+    to,
+    subject: `⚠️ You will be auto-checked out in ${minutesLeft} minutes`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #f59e0b;">⏰ Inactivity Warning</h2>
+        <p style="color: #1f2937;">Hi ${name},</p>
+        <p style="color: #4b5563;">
+          You haven't been active for a while. To stay checked-in, just move your mouse or click anywhere in AttendEase within the next <strong>${minutesLeft} minutes</strong>.
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">
+          Otherwise we'll automatically check you out using your last activity time.
+        </p>
+      </div>
+    `,
+  });
+};
+
+export const sendLeaveApprovalEmail = async (
+  to,
+  name,
+  leaveType,
+  startDate,
+  endDate,
+  status,
+) => {
+  const isApproved = status === "approved";
+  return sendEmail({
+    to,
+    subject: `Leave Request ${isApproved ? "Approved ✅" : "Rejected ❌"}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: ${isApproved ? "#10b981" : "#ef4444"};">
           Your leave request has been ${status}
         </h1>
         <p style="color: #4b5563; font-size: 16px;">Hi ${name},</p>
@@ -115,15 +162,17 @@ export const sendLeaveApprovalEmail = async (to, name, leaveType, startDate, end
           <p style="margin: 5px 0;"><strong>From:</strong> ${startDate}</p>
           <p style="margin: 5px 0;"><strong>To:</strong> ${endDate}</p>
           <p style="margin: 5px 0;"><strong>Status:</strong> 
-            <span style="color: ${isApproved ? '#10b981' : '#ef4444'}; font-weight: bold; text-transform: uppercase;">
+            <span style="color: ${isApproved ? "#10b981" : "#ef4444"}; font-weight: bold; text-transform: uppercase;">
               ${status}
             </span>
           </p>
         </div>
         <p style="color: #6b7280; font-size: 14px;">
-          ${isApproved 
-            ? 'Your leave has been added to the calendar. Enjoy your time off!' 
-            : 'If you have questions, please contact your administrator.'}
+          ${
+            isApproved
+              ? "Your leave has been added to the calendar. Enjoy your time off!"
+              : "If you have questions, please contact your administrator."
+          }
         </p>
       </div>
     `,

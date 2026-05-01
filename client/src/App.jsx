@@ -13,6 +13,7 @@ import {
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
+import { ActivityTrackerProvider } from "@/lib/ActivityTracker";
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -22,6 +23,7 @@ const PUBLIC_PAGES = [
   "Welcome",
   "Login",
   "Register",
+  "ResetPassword",
   "PrivacyPolicy",
   "AccessDenied",
 ];
@@ -30,6 +32,7 @@ const NO_LAYOUT_PAGES = [
   "Welcome",
   "Login",
   "Register",
+  "ResetPassword",
   "CompleteProfile",
   "AccessDenied",
 ];
@@ -148,7 +151,9 @@ function App() {
         <QueryClientProvider client={queryClientInstance}>
           <Router>
             <NavigationTracker />
-            <AuthenticatedApp />
+            <ActivityTrackerProvider>
+              <AuthenticatedApp />
+            </ActivityTrackerProvider>
           </Router>
           <Toaster />
         </QueryClientProvider>

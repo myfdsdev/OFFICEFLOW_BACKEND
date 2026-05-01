@@ -59,9 +59,32 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    is_active: {
+      type: Boolean,
+      default: true,
+    },
+    password_reset_token: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    password_reset_expires: {
+      type: Date,
+      default: null,
+      select: false,
+    },
     last_active: {
       type: Date,
       default: Date.now,
+    },
+    // Auto-checkout tracking
+    last_activity: {
+      type: Date,
+      default: null,
+    },
+    auto_checkout_warning_sent: {
+      type: Boolean,
+      default: false,
     },
     company_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -70,6 +93,12 @@ const userSchema = new mongoose.Schema(
     is_profile_complete: {
       type: Boolean,
       default: false,
+    },
+    // Per-employee shift assignment (overrides global office hours when set)
+    shift_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shift",
+      default: null,
     },
     // Settings fields (company-wide, editable by admin)
     office_start_time: { type: String, default: "09:00" },
@@ -80,6 +109,10 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: ["monday", "tuesday", "wednesday", "thursday", "friday"],
     },
+    total_points: { type: Number, default: 0 },
+    current_rank: { type: Number, default: 0 },
+    badges: { type: [String], default: [] },
+    last_rank_calc: { type: Date, default: null },
   },
   { timestamps: true },
 );

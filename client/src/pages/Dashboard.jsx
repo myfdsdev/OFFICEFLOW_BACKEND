@@ -101,8 +101,7 @@ function useRealTimeStats(firstCheckIn, lastCheckOut) {
       setLiveHours(formatHours(diff));
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [firstCheckIn, lastCheckOut]);
+  const yLabels = [niceMax, niceMax - step, niceMax - step * 2, step, 0];
 
   return { elapsed, liveHours };
 }
@@ -471,6 +470,7 @@ export default function Dashboard() {
       message: 'Attendance report downloaded successfully.',
     });
   };
+});
 
   if (authLoading) {
     return (

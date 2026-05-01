@@ -1,8 +1,10 @@
 // ==========================================
 // IMPORTS
 // ==========================================
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -29,8 +31,10 @@ import attendanceSessionRoutes from "./src/routes/attendanceSession.Routes.js";
 import uploadRoutes from "./src/routes/upload.Routes.js";
 import functionsRoutes from "./src/routes/functions.Routes.js";
 import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
+import shiftRoutes from "./src/routes/shift.Routes.js";
+import activityRoutes from "./src/routes/activity.Routes.js";
+import leaderboardRoutes from "./src/routes/leaderboard.Routes.js";
 // Load env FIRST
-dotenv.config();
 
 // Config & middleware imports
 import connectDB from "./src/config/db.js";
@@ -131,6 +135,7 @@ app.get("/api/health", (req, res) => {
 // ==========================================
 app.use("/api/auth", authRoutes);
 app.use("/api/app-settings", appSettingsRoutes);
+app.use("/api/shifts", shiftRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);
@@ -148,6 +153,8 @@ app.use("/api/message-reminders", messageReminderRoutes);
 app.use("/api/attendance-sessions", attendanceSessionRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/functions", functionsRoutes);
+app.use("/api/activity", activityRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 
 // ==========================================
 // ERROR HANDLING (must be last!)

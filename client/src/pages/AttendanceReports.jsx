@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { format, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,13 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { FileDown, FileSpreadsheet, Calendar, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "react-hot-toast";
 
 export default function AttendanceReports() {
   const [user, setUser] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then((userData) => {
@@ -29,29 +27,17 @@ export default function AttendanceReports() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees'],
     queryFn: () => base44.entities.User.list(),
-    enabled: !!user,
   });
 
-  // Strategy: fetch all attendance for current 12 months once,
-  // then filter client-side. Avoids date-format edge cases.
-  const { data: allAttendance = [], isLoading: loadingAttendance } = useQuery({
-    queryKey: ['allMonthlyAttendance'],
-    queryFn: async () => {
-      try {
-        const records = await base44.entities.Attendance.list('-date', 5000);
-        return records || [];
-      } catch (error) {
-        console.error('Failed to fetch attendance:', error);
-        return [];
+  const { data: attendance = [] } = useQuery({
+    queryKey: ['monthlyAttendance', selectedMonth],
+    queryFn: () => base44.entities.Attendance.filter({
+      date: { 
+        $gte: `${selectedMonth}-01`, 
+        $lte: `${selectedMonth}-31` 
       }
-    },
-    enabled: !!user && user.role === 'admin',
+    }),
   });
-
-  // Filter by month CLIENT-SIDE
-  const attendance = allAttendance.filter(a => 
-    a.date && a.date.startsWith(selectedMonth)
-  );
 
   const generateMonthOptions = () => {
     const options = [];
@@ -74,12 +60,7 @@ export default function AttendanceReports() {
     const totalDays = employeeAttendance.length;
     const totalHours = employeeAttendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
     const avgHours = totalDays > 0 ? (totalHours / totalDays).toFixed(1) : '0';
-    
-    // Attendance % counts present + late + half_day as "showed up"
-    const attendedDays = presentCount + lateCount + halfDayCount;
-    const attendancePercentage = totalDays > 0 
-      ? ((attendedDays / totalDays) * 100).toFixed(1) 
-      : '0';
+    const attendancePercentage = totalDays > 0 ? ((presentCount / totalDays) * 100).toFixed(1) : '0';
 
     return {
       presentCount,
@@ -94,77 +75,52 @@ export default function AttendanceReports() {
   };
 
   const handleExportPDF = async () => {
-    setExporting(true);
-    try {
-      const response = await base44.functions.invoke('exportAttendanceReport', {
-        month: selectedMonth,
-        format: 'pdf',
-      });
-      
-      // Handle both blob and data wrapper responses
-      const blobData = response instanceof Blob ? response : (response?.data || response);
-      const blob = new Blob([blobData], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `attendance-report-${selectedMonth}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-      toast.success('PDF exported');
-    } catch (error) {
-      console.error('Export PDF failed:', error);
-      toast.error('Failed to export PDF');
-    } finally {
-      setExporting(false);
-    }
+    const { data } = await base44.functions.invoke('exportAttendanceReport', {
+      month: selectedMonth,
+      format: 'pdf',
+    });
+    const blob = new Blob([data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-report-${selectedMonth}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
   };
 
   const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      const response = await base44.functions.invoke('exportAttendanceReport', {
-        month: selectedMonth,
-        format: 'excel',
-      });
-      
-      const blobData = response instanceof Blob ? response : (response?.data || response);
-      const blob = new Blob([blobData], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `attendance-report-${selectedMonth}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-      toast.success('Excel exported');
-    } catch (error) {
-      console.error('Export Excel failed:', error);
-      toast.error('Failed to export Excel');
-    } finally {
-      setExporting(false);
-    }
+    const { data } = await base44.functions.invoke('exportAttendanceReport', {
+      month: selectedMonth,
+      format: 'excel',
+    });
+    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `attendance-report-${selectedMonth}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-pulse text-lime-100/35">Loading...</div>
       </div>
     );
   }
 
   if (!user || user.role !== 'admin') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center p-8">
           <AlertCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-500">Only administrators can access attendance reports.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
+          <p className="text-lime-100/50">Only administrators can access attendance reports.</p>
         </div>
       </div>
     );
@@ -173,24 +129,24 @@ export default function AttendanceReports() {
   const employeeUsers = employees.filter(e => e.role === 'user');
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black">
       <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             Attendance Reports
           </h1>
-          <p className="text-gray-500 mt-1">View and export monthly attendance reports</p>
+          <p className="text-lime-100/50 mt-1">View and export monthly attendance reports</p>
         </motion.div>
 
-        <Card className="border-0 shadow-sm mb-6">
+        <Card className="border border-lime-400/15 bg-black mb-6">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row justify-between gap-4">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
+                <Calendar className="w-4 h-4 text-lime-100/35" />
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
@@ -209,8 +165,7 @@ export default function AttendanceReports() {
                 <Button
                   variant="outline"
                   onClick={handleExportPDF}
-                  disabled={exporting || attendance.length === 0}
-                  className="gap-2"
+                  className="gap-2 bg-lime-400 text-black"
                 >
                   <FileDown className="w-4 h-4" />
                   Export PDF
@@ -218,8 +173,7 @@ export default function AttendanceReports() {
                 <Button
                   variant="outline"
                   onClick={handleExportExcel}
-                  disabled={exporting || attendance.length === 0}
-                  className="gap-2"
+                  className="gap-2  bg-lime-400 text-black"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
                   Export Excel
@@ -229,75 +183,61 @@ export default function AttendanceReports() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-sm">
+        <Card className="border border-lime-400/15 bg-black">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Employee Attendance Summary</span>
-              <span className="text-sm font-normal text-gray-500">
-                {attendance.length} record{attendance.length !== 1 ? 's' : ''} this month
-              </span>
-            </CardTitle>
+            <CardTitle className="text-white">Employee Attendance Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            {loadingAttendance ? (
-              <div className="text-center py-12 text-gray-400">Loading attendance...</div>
-            ) : employeeUsers.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                No employees found
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead className="text-center">Present</TableHead>
-                      <TableHead className="text-center">Late</TableHead>
-                      <TableHead className="text-center">Half Day</TableHead>
-                      <TableHead className="text-center">Leave</TableHead>
-                      <TableHead className="text-center">Total Days</TableHead>
-                      <TableHead className="text-center">Total Hours</TableHead>
-                      <TableHead className="text-center">Avg Hours</TableHead>
-                      <TableHead className="text-center">Attendance %</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {employeeUsers.map((employee) => {
-                      const stats = calculateEmployeeStats(employee.email);
-                      const percentage = parseFloat(stats.attendancePercentage);
-                      const percentageColor = 
-                        percentage >= 90 ? 'bg-emerald-100 text-emerald-700' :
-                        percentage >= 75 ? 'bg-amber-100 text-amber-700' :
-                        percentage > 0 ? 'bg-rose-100 text-rose-700' :
-                        'bg-gray-100 text-gray-500';
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="text-center">Present</TableHead>
+                    <TableHead className="text-center">Late</TableHead>
+                    <TableHead className="text-center">Half Day</TableHead>
+                    <TableHead className="text-center">Leave</TableHead>
+                    <TableHead className="text-center">Total Days</TableHead>
+                    <TableHead className="text-center">Total Hours</TableHead>
+                    <TableHead className="text-center">Avg Hours</TableHead>
+                    <TableHead className="text-center">Attendance %</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {employeeUsers.map((employee) => {
+                    const stats = calculateEmployeeStats(employee.email);
+                    const percentage = parseFloat(stats.attendancePercentage);
+                    const percentageColor = 
+                      percentage >= 90 ? 'bg-emerald-100 text-emerald-700' :
+                      percentage >= 75 ? 'bg-amber-100 text-amber-700' :
+                      'bg-rose-100 text-rose-700';
 
-                      return (
-                        <TableRow key={employee.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{employee.full_name}</p>
-                              <p className="text-xs text-gray-500">{employee.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">{stats.presentCount}</TableCell>
-                          <TableCell className="text-center">{stats.lateCount}</TableCell>
-                          <TableCell className="text-center">{stats.halfDayCount}</TableCell>
-                          <TableCell className="text-center">{stats.leaveCount}</TableCell>
-                          <TableCell className="text-center font-medium">{stats.totalDays}</TableCell>
-                          <TableCell className="text-center">{stats.totalHours}h</TableCell>
-                          <TableCell className="text-center">{stats.avgHours}h</TableCell>
-                          <TableCell className="text-center">
-                            <Badge className={percentageColor}>
-                              {stats.attendancePercentage}%
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{employee.full_name}</p>
+                            <p className="text-xs text-lime-100/50">{employee.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">{stats.presentCount}</TableCell>
+                        <TableCell className="text-center">{stats.lateCount}</TableCell>
+                        <TableCell className="text-center">{stats.halfDayCount}</TableCell>
+                        <TableCell className="text-center">{stats.leaveCount}</TableCell>
+                        <TableCell className="text-center font-medium">{stats.totalDays}</TableCell>
+                        <TableCell className="text-center">{stats.totalHours}h</TableCell>
+                        <TableCell className="text-center">{stats.avgHours}h</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={percentageColor}>
+                            {stats.attendancePercentage}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

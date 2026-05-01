@@ -53,10 +53,10 @@ export default function GroupChatList({ currentUser, onGroupSelect }) {
       // Get the last time user opened this group chat from localStorage
       const lastOpenedKey = `group_chat_opened_${group.id}_${currentUser.id}`;
       const lastOpened = localStorage.getItem(lastOpenedKey);
-      
+
       if (lastOpened) {
-        const unreadMessages = groupMessages.filter(m => 
-          new Date(m.created_date) > new Date(lastOpened) && 
+        const unreadMessages = groupMessages.filter(m =>
+          new Date(m.created_date) > new Date(lastOpened) &&
           m.sender_id !== currentUser.id
         );
         counts[group.id] = unreadMessages.length;
@@ -78,32 +78,32 @@ export default function GroupChatList({ currentUser, onGroupSelect }) {
     // Mark as opened in localStorage
     const lastOpenedKey = `group_chat_opened_${group.id}_${currentUser.id}`;
     localStorage.setItem(lastOpenedKey, new Date().toISOString());
-    
+
     // Reset unread count immediately
     setUnreadCounts(prev => ({ ...prev, [group.id]: 0 }));
-    
+
     onGroupSelect(group);
   };
 
   if (myGroups.length === 0) return null;
 
   return (
-    <Card className="border-0 shadow-sm">
-      <div 
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+    <Card className=" shadow-sm bg-lime-400/0 text-white border border-lime-400/15">
+      <div
+        className="flex items-center justify-between p-4 cursor-pointer  transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-emerald-600" />
-          <h3 className="font-semibold text-gray-900">Group Chats</h3>
-          <Badge variant="outline" className="text-xs">
+          <h3 className="font-semibold text-white">Group Chats</h3>
+          <Badge variant="outline" className="text-xs text-lime-100/75 border border-lime-400/15">
             {myGroups.length}
           </Badge>
         </div>
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-white" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <ChevronRight className="w-4 h-4 text-white" />
         )}
       </div>
 
@@ -122,7 +122,7 @@ export default function GroupChatList({ currentUser, onGroupSelect }) {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   onClick={() => handleGroupClick(group)}
-                  className="group w-full flex items-center gap-3 p-3 rounded-lg hover:bg-emerald-50 transition-colors text-left"
+                  className="group w-full flex items-center gap-3 p-3 rounded-lg  transition-colors text-left"
                 >
                   <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <span className="text-emerald-600 font-semibold text-sm">
@@ -130,7 +130,7 @@ export default function GroupChatList({ currentUser, onGroupSelect }) {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate">
+                    <p className="font-medium text-white text-sm truncate">
                       {group.group_name}
                     </p>
                     <p className="text-xs text-gray-500 truncate">

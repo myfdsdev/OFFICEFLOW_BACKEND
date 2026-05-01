@@ -66,7 +66,7 @@ export default function InviteUserDialog({ open, onOpenChange }) {
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-lime-100/35" />
                 <Input
                   id="email"
                   type="email"
@@ -90,7 +90,7 @@ export default function InviteUserDialog({ open, onOpenChange }) {
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-lime-100/50">
                 {role === 'admin' 
                   ? 'Admins have full access to manage employees and attendance'
                   : 'Team members can view and manage their own attendance'}
@@ -109,7 +109,7 @@ export default function InviteUserDialog({ open, onOpenChange }) {
             <Button
               type="submit"
               disabled={!email.trim() || inviteUserMutation.isPending}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-lime-400 hover:bg-lime-300"
             >
               {inviteUserMutation.isPending ? (
                 <>

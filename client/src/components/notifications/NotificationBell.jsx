@@ -14,107 +14,183 @@ import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
+function formatNotificationDate(dateValue) {
+  if (!dateValue) return '';
+
+  try {
+    const parsedDate = new Date(dateValue);
+    if (Number.isNaN(parsedDate.getTime())) return '';
+
+    return format(
+      toZonedTime(parsedDate, 'Asia/Kolkata'),
+      'MMM d, h:mm a'
+    );
+  } catch {
+    return '';
+  }
+}
+
 export default function NotificationBell({ userEmail, notificationType = null }) {
   const queryClient = useQueryClient();
+  const notificationQueryKey = ['notifications', userEmail, notificationType];
 
   const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications', userEmail, notificationType],
+    queryKey: notificationQueryKey,
     queryFn: async () => {
       if (!userEmail) return [];
-      
+
       if (notificationType) {
-        return await base44.entities.Notification.filter({ 
-          user_email: userEmail, 
-          type: notificationType 
-        }, '-created_date', 50);
+        return await base44.entities.Notification.filter(
+          {
+            user_email: userEmail,
+            type: notificationType,
+          },
+          '-created_date',
+          50
+        );
       }
-      
-      return await base44.entities.Notification.filter({ user_email: userEmail }, '-created_date', 50);
+
+      return await base44.entities.Notification.filter(
+        { user_email: userEmail },
+        '-created_date',
+        50
+      );
     },
     enabled: !!userEmail,
-    refetchInterval: 5000, // Refetch every 5 seconds
   });
 
-  // Real-time subscription for notifications
   useEffect(() => {
     if (!userEmail) return;
 
     const unsubscribe = base44.entities.Notification.subscribe((event) => {
-      if (event.type === 'create') {
+      if (event.type === 'create' || event.type === 'update') {
         const notif = event.data;
-        if (notif.user_email === userEmail) {
-          queryClient.invalidateQueries({ queryKey: ['notifications'] });
+
+        if (
+          notif?.user_email === userEmail &&
+          (!notificationType || notif?.type === notificationType)
+        ) {
+          queryClient.invalidateQueries({ queryKey: notificationQueryKey });
         }
       }
     });
 
     return unsubscribe;
-  }, [userEmail, queryClient]);
+  }, [userEmail, notificationType, queryClient]);
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id) => base44.entities.Notification.update(id, { is_read: true }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    mutationFn: (id) =>
+      base44.entities.Notification.update(id, { is_read: true }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: notificationQueryKey }),
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      const unreadNotifications = notifications.filter(n => !n.is_read);
-      await Promise.all(unreadNotifications.map(n => 
-        base44.entities.Notification.update(n.id, { is_read: true })
-      ));
+      const unreadNotifications = notifications.filter((n) => !n.is_read);
+
+      await Promise.all(
+        unreadNotifications.map((n) =>
+          base44.entities.Notification.update(n.id, { is_read: true })
+        )
+      );
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: notificationQueryKey }),
   });
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-11 w-11 rounded-2xl border border-lime-400/15 bg-[#061006]/80/40 hover:bg-[#061006]/80 text-white"
+        >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-rose-500 text-white text-xs">
+            <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full border border-lime-400/15">
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="font-semibold">Notifications</p>
+
+      <DropdownMenuContent
+        align="end"
+        className="w-[360px] rounded-2xl border border-lime-400/15 bg-[#020806]/90 text-white p-0 overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="font-semibold text-white">Notifications</p>
+            <p className="text-xs text-lime-100/55">
+              {unreadCount > 0
+                ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+                : 'All caught up'}
+            </p>
+          </div>
+
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-indigo-600"
+              className="text-xs text-lime-300 hover:text-lime-300 hover:bg-[#061006]/80"
               onClick={() => markAllAsReadMutation.mutate()}
+              disabled={markAllAsReadMutation.isPending}
             >
-              Mark all as read
+              {markAllAsReadMutation.isPending ? 'Updating...' : 'Mark all read'}
             </Button>
           )}
         </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-96 overflow-y-auto">
+
+        <DropdownMenuSeparator className="bg-[#061006]/80 m-0" />
+
+        <div className="max-h-96 overflow-y-auto hide-scrollbar">
           {notifications.length === 0 ? (
-            <div className="px-3 py-8 text-center text-gray-400 text-sm">
+            <div className="px-4 py-10 text-center text-lime-100/55 text-sm">
               No notifications yet
             </div>
           ) : (
             notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
-                className={`px-3 py-3 cursor-pointer ${!notification.is_read ? 'bg-indigo-50' : ''}`}
-                onClick={() => !notification.is_read && markAsReadMutation.mutate(notification.id)}
+                className={`px-4 py-4 cursor-pointer border-b border-lime-400/15/70 last:border-b-0 focus:bg-lime-400/10 ${
+                  !notification.is_read ? 'bg-lime-400/5' : 'bg-transparent'
+                }`}
+                onClick={() => {
+                  if (!notification.is_read) {
+                    markAsReadMutation.mutate(notification.id);
+                  }
+                }}
               >
-                <div className="flex-1">
-                  <p className={`text-sm ${!notification.is_read ? 'font-semibold' : 'font-medium'}`}>
-                    {notification.title}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{notification.message}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {format(toZonedTime(new Date(notification.created_date + 'Z'), 'Asia/Kolkata'), 'MMM d, h:mm a')}
-                  </p>
+                <div className="flex w-full items-start gap-3">
+                  <div
+                    className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 ${
+                      !notification.is_read ? 'bg-lime-400' : 'bg-lime-400/20'
+                    }`}
+                  />
+
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm leading-5 ${
+                        !notification.is_read
+                          ? 'font-semibold text-white'
+                          : 'font-medium text-white'
+                      }`}
+                    >
+                      {notification.title}
+                    </p>
+
+                    <p className="text-xs text-lime-100/55 mt-1 leading-5 break-words">
+                      {notification.message}
+                    </p>
+
+                    <p className="text-[11px] text-lime-100/45 mt-2">
+                      {formatNotificationDate(notification.created_date)}
+                    </p>
+                  </div>
                 </div>
               </DropdownMenuItem>
             ))

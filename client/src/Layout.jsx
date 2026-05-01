@@ -68,19 +68,10 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.me().then(setUser);
   }, []);
 
-  // Track user activity and update online status
   useUserActivity(user);
-
-  // Enable auto check-in on first app open of the day
   useAutoCheckIn(user);
-
-  // Enable desktop notifications
   useDesktopNotifications(user);
-
-  // Enable message desktop notifications
   useMessageDesktopNotifications(user);
-
-  // Enable project assignment notifications
   useProjectNotifications(user);
 
   const getInitials = (name) => {
@@ -97,22 +88,16 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const navItems = user?.role === "admin" ? adminNavItems : employeeNavItems;
-  const isAdminSection =
-    currentPageName === "AdminDashboard" ||
-    currentPageName === "AttendanceReports" ||
-    currentPageName === "Settings";
-
   const NavLinks = ({ onClick }) => (
     <div className="space-y-4">
-      {/* Admin Section */}
       {user?.role === "admin" && (
         <div>
           <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               Admin Panel
-            </p>
+            </p>   
           </div>
+
           <div className="space-y-1">
             {adminNavItems.slice(0, 3).map((item) => {
               const Icon = item.icon;
@@ -123,28 +108,22 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     to={createPageUrl(item.page)}
                     onClick={onClick}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
                       isActive
-                        ? "bg-indigo-50 text-indigo-600 font-medium"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-lime-400/10 text-lime-300 font-medium"
+                        : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
                     }`}
                   >
                     <Icon
-                      className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-gray-400"}`}
+                      className={`w-5 h-5 ${
+                        isActive ? "text-lime-300" : "text-lime-100/45"
+                      }`}
                     />
-                    <span
-                      className={`flex-1 whitespace-nowrap ${item.name === "Direct Messages" ? "mr-8" : ""}`}
-                    >
+
+                    <span className="flex-1 whitespace-nowrap">
                       {item.name}
                     </span>
-                    {item.name === "Direct Messages" && user && (
-                      <div className="pointer-events-auto">
-                        <NotificationBell
-                          userEmail={user.email}
-                          notificationType="new_message"
-                        />
-                      </div>
-                    )}
+
                     {isActive && <ChevronRight className="w-4 h-4" />}
                   </Link>
                 </div>
@@ -154,15 +133,15 @@ export default function Layout({ children, currentPageName }) {
         </div>
       )}
 
-      {/* Personal Section */}
       <div>
         {user?.role === "admin" && (
           <div className="px-4 py-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               My Account
             </p>
           </div>
         )}
+
         <div className="space-y-1">
           {(user?.role === "admin"
             ? adminNavItems.slice(3)
@@ -176,20 +155,26 @@ export default function Layout({ children, currentPageName }) {
                 <Link
                   to={createPageUrl(item.page)}
                   onClick={onClick}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
                     isActive
-                      ? "bg-indigo-50 text-indigo-600 font-medium"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      ? "bg-lime-400/10 text-lime-300 font-medium"
+                      : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
                   }`}
                 >
                   <Icon
-                    className={`w-5 h-5 ${isActive ? "text-indigo-600" : "text-gray-400"}`}
+                    className={`w-5 h-5 ${
+                      isActive ? "text-lime-300" : "text-lime-100/45"
+                    }`}
                   />
+
                   <span
-                    className={`flex-1 whitespace-nowrap ${item.name === "Direct Messages" ? "mr-8" : ""}`}
+                    className={`flex-1 whitespace-nowrap ${
+                      item.name === "Direct Messages" ? "mr-8" : ""
+                    }`}
                   >
                     {item.name}
                   </span>
+
                   {item.name === "Direct Messages" && user && (
                     <div className="pointer-events-auto">
                       <NotificationBell
@@ -198,6 +183,7 @@ export default function Layout({ children, currentPageName }) {
                       />
                     </div>
                   )}
+
                   {isActive && <ChevronRight className="w-4 h-4" />}
                 </Link>
               </div>
@@ -209,58 +195,67 @@ export default function Layout({ children, currentPageName }) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black text-white">
       <NotificationPermissionPrompt />
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 bg-white border-r border-gray-100 p-4">
+
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 bg-[#020806]/90 border-r border-lime-400/15 p-4">
         <div className="px-4 py-4 mb-6">
           <AppLogo size="md" />
         </div>
 
-        <nav className="flex-1">
+        <nav className="flex-1 overflow-y-auto">
           <NavLinks />
         </nav>
 
         {user && (
-          <div className="border-t border-gray-100 pt-4 mt-4">
+          <div className="border-t border-lime-400/15 pt-4 mt-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors">
+                <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-lime-400/10 transition-colors">
                   <div className="relative">
-                    <Avatar className="w-10 h-10 bg-indigo-100 text-indigo-600">
+                    <Avatar className="w-10 h-10 border border-lime-400/20">
                       {user.profile_photo ? (
                         <AvatarImage
                           src={user.profile_photo}
                           alt={user.full_name}
+                          className="object-cover"
                         />
                       ) : (
-                        <AvatarFallback className="bg-indigo-100 text-indigo-600 font-semibold">
+                        <AvatarFallback className="bg-[#061006]/80 text-lime-300 font-semibold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       )}
                     </Avatar>
+
                     <div className="absolute -bottom-0.5 -right-0.5">
                       <OnlineStatusIndicator isOnline={true} size="sm" />
                     </div>
                   </div>
+
                   <div className="text-left flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
+                    <p className="font-medium text-white truncate">
                       {user.full_name}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-lime-100/45 truncate">
                       {user.email}
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem className="text-gray-500 text-xs">
+
+              <DropdownMenuContent
+                align="end"
+                className="w-56 bg-[#020806]/90 border-lime-400/15 text-white"
+              >
+                <DropdownMenuItem className="text-lime-100/45 text-xs focus:bg-lime-400/10">
                   {user.role === "admin" ? "Administrator" : "Employee"}
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
+
+                <DropdownMenuSeparator className="bg-[#061006]/80" />
+
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="text-rose-600"
+                  className="text-rose-400 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
@@ -271,60 +266,72 @@ export default function Layout({ children, currentPageName }) {
         )}
       </aside>
 
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-100 z-50">
+      <header className="lg:hidden fixed top-0 left-0 right-0 bg-[#020806]/90 backdrop-blur-md border-b border-lime-400/15 z-50">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="px-4 py-4 mb-6">
-            <AppLogo size="md" />
-          </div>
+          <AppLogo size="sm" />
+
           <div className="flex items-center gap-2">
             {user && <NotificationBell userEmail={user.email} />}
+
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-lime-100/75 hover:bg-[#061006]/80"
+                >
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-72 p-0">
-                <div className="p-4 border-b">
+
+              <SheetContent
+                side="right"
+                className="w-72 p-0 bg-[#020806]/90 border-lime-400/15"
+              >
+                <div className="p-4 border-b border-lime-400/15">
                   {user && (
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <Avatar className="w-10 h-10 bg-indigo-100 text-indigo-600">
+                        <Avatar className="w-10 h-10 border border-lime-400/20">
                           {user.profile_photo ? (
                             <AvatarImage
                               src={user.profile_photo}
                               alt={user.full_name}
+                              className="object-cover"
                             />
                           ) : (
-                            <AvatarFallback className="bg-indigo-100 text-indigo-600 font-semibold">
+                            <AvatarFallback className="bg-[#061006]/80 text-lime-300 font-semibold">
                               {getInitials(user.full_name)}
                             </AvatarFallback>
                           )}
                         </Avatar>
+
                         <div className="absolute -bottom-0.5 -right-0.5">
                           <OnlineStatusIndicator isOnline={true} size="sm" />
                         </div>
                       </div>
+
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-white">
                           {user.full_name}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-lime-100/45">
                           {user.role === "admin" ? "Admin" : "Employee"}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
-                <nav className="p-4">
+
+                <nav className="p-4 overflow-y-auto max-h-[calc(100vh-180px)]">
                   <NavLinks onClick={() => setMobileMenuOpen(false)} />
                 </nav>
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
+
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-lime-400/15 bg-[#020806]/90">
                   <Button
                     variant="outline"
                     onClick={handleLogout}
-                    className="w-full text-rose-600 border-rose-200 hover:bg-rose-50"
+                    className="w-full text-rose-400 border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/40"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
                     Logout
@@ -336,9 +343,8 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="lg:ml-72 pt-16 lg:pt-0">
-        <div className="min-h-screen">{children}</div>
+        <div className="min-h-screen bg-black">{children}</div>
       </main>
     </div>
   );

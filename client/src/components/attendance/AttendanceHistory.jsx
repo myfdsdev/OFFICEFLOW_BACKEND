@@ -45,7 +45,7 @@ export default function AttendanceHistory({ attendance, limit }) {
   const displayData = limit ? filteredData.slice(0, limit) : filteredData;
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="border-0 shadow-sm bg-black text-white">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Calendar className="w-5 h-5 text-indigo-600" />
@@ -66,12 +66,12 @@ export default function AttendanceHistory({ attendance, limit }) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="p-4 rounded-xl bg-black border border-lime-400/10 transition-colors"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex flex-col items-center justify-center">
-                        <span className="text-xs uppercase font-semibold">
+                        <span className="text-xs uppercase font-semibold ">
                           {format(parseISO(record.date), "MMM")}
                         </span>
                         <span className="text-lg font-bold">
@@ -79,7 +79,7 @@ export default function AttendanceHistory({ attendance, limit }) {
                         </span>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900 text-lg">
+                        <p className="font-semibold text-white text-lg">
                           {format(parseISO(record.date), "EEEE")}
                         </p>
                         <p className="text-xs text-gray-500">
@@ -104,7 +104,7 @@ export default function AttendanceHistory({ attendance, limit }) {
                   </div>
 
                   {record.first_check_in && (
-                    <div className="flex items-center gap-2 text-sm bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="flex items-center gap-2 text-sm bg-black rounded-lg p-3 border border-lime-400/10">
                       <Clock className="w-4 h-4 text-gray-400" />
                       <span className="font-medium text-gray-700">{format(new Date(record.first_check_in), 'HH:mm')}</span>
                       <span className="text-gray-400">→</span>

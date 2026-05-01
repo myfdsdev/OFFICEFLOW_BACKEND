@@ -172,16 +172,24 @@ export default function DirectMessages() {
       if (!user || !selectedUser) return [];
 
       try {
-        const allMessages = await base44.entities.Message.list('-created_date', 1000);
+        const [sentMessages, receivedMessages] = await Promise.all([
+          base44.entities.Message.filter(
+            { sender_id: user.id, receiver_id: selectedUser.id },
+            '-createdAt',
+            1000
+          ),
+          base44.entities.Message.filter(
+            { sender_id: selectedUser.id, receiver_id: user.id },
+            '-createdAt',
+            1000
+          ),
+        ]);
 
-        const conversationMessages = allMessages.filter(
-          (m) =>
-            (m.sender_id === user.id && m.receiver_id === selectedUser.id) ||
-            (m.sender_id === selectedUser.id && m.receiver_id === user.id)
-        );
-
-        return conversationMessages.sort(
-          (a, b) => new Date(a.created_date) - new Date(b.created_date)
+        const allMessages = [...(sentMessages || []), ...(receivedMessages || [])];
+        return allMessages.sort(
+          (a, b) =>
+            new Date(a.created_date || a.createdAt) -
+            new Date(b.created_date || b.createdAt)
         );
       } catch (error) {
         console.error('Failed to fetch messages:', error);

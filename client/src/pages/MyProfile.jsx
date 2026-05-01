@@ -28,6 +28,8 @@ import {
   Upload,
 } from "lucide-react";
 import { format } from "date-fns";
+import AchievementWall from "@/components/profile/AchievementWall";
+import RankBadge from "@/components/profile/RankBadge";
 
 const departments = ["Video Editor", "Graphic Designer", "Web Designer", "Content Writer", "Developer"];
 const MAX_FILE_SIZE_MB = 2;
@@ -266,7 +268,7 @@ export default function MyProfile() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] blur-[120px] rounded-full" />
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 md:p-8 relative z-10 space-y-6">
+      <div className="w-full px-4 md:px-8 py-6 lg:py-8 relative z-10 space-y-6">
         <Banner type={banner.type} message={banner.message} />
 
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -329,6 +331,12 @@ export default function MyProfile() {
       >
         {user.role.toUpperCase()}
       </Badge>
+
+      <RankBadge
+        rank={user.current_rank}
+        points={user.total_points}
+        className="mt-5"
+      />
 
       <div className="mt-5 rounded-2xl border border-lime-400/15 bg-black/50 px-4 py-3 text-left">
         <div className="flex items-center justify-between gap-3 mb-2">
@@ -627,6 +635,10 @@ export default function MyProfile() {
                 </AnimatePresence>
               </CardContent>
             </Card>
+
+            <div className="mt-8">
+              <AchievementWall initialBadges={user.badges || []} />
+            </div>
           </div>
         </div>
       </div>

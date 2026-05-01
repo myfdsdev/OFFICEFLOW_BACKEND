@@ -13,7 +13,6 @@ import DirectMessages from './pages/DirectMessages';
 import EmployeeDetails from './pages/EmployeeDetails';
 import Groups from './pages/Groups';
 import LeaveRequests from './pages/LeaveRequests';
-import Leaderboard from './pages/Leaderboard';
 import MyProfile from './pages/MyProfile';
 import Pricing from './pages/Pricing';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -24,6 +23,8 @@ import Welcome from './pages/Welcome';
 import __Layout from './Layout.jsx';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Leaderboard from './pages/Leaderboard';
+import MyStats from './pages/MyStats';
 import ResetPassword from './pages/ResetPassword';
 
 export const PAGES = {
@@ -37,18 +38,19 @@ export const PAGES = {
     "DirectMessages": DirectMessages,
     "EmployeeDetails": EmployeeDetails,
     "Groups": Groups,
-    "LeaveRequests": LeaveRequests,
     "Leaderboard": Leaderboard,
+    "LeaveRequests": LeaveRequests,
     "MyProfile": MyProfile,
+    "MyStats": MyStats,
     "Pricing": Pricing,
     "PrivacyPolicy": PrivacyPolicy,
     "ProjectBoard": ProjectBoard,
     "Projects": Projects,
+    "ResetPassword": ResetPassword,
     "Settings": Settings,
     "Welcome": Welcome,
     "Login": Login,
     "Register": Register,
-    "ResetPassword": ResetPassword,
 };
 
 export const pagesConfig = {

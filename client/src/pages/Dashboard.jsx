@@ -51,6 +51,7 @@ import {
 import LeaveRequestForm from '../components/leave/LeaveRequestForm';
 import LeaveRequestList from '../components/leave/LeaveRequestList';
 import NotificationBell from '../components/notifications/NotificationBell';
+import SmartTimer from '../components/dashboard/SmartTimer';
 
 const THEME = {
   bg: "#000000",
@@ -101,7 +102,8 @@ function useRealTimeStats(firstCheckIn, lastCheckOut) {
       setLiveHours(formatHours(diff));
     }, 1000);
 
-  const yLabels = [niceMax, niceMax - step, niceMax - step * 2, step, 0];
+    return () => clearInterval(interval);
+  }, [firstCheckIn, lastCheckOut]);
 
   return { elapsed, liveHours };
 }
@@ -470,7 +472,6 @@ export default function Dashboard() {
       message: 'Attendance report downloaded successfully.',
     });
   };
-});
 
   if (authLoading) {
     return (
@@ -513,7 +514,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen p-4 md:p-6 lg:p-8" style={{ background: THEME.bg, color: THEME.text }}>
-      <div className="max-w-7xl mx-auto space-y-6 ">
+      <div className="w-full space-y-6 ">
 
         {feedback.message && (
           <div
@@ -716,6 +717,12 @@ export default function Dashboard() {
                   icon={LogOut}
                 />
               </div>
+
+              <SmartTimer
+                firstCheckIn={todayAttendance?.first_check_in}
+                lastCheckOut={todayAttendance?.last_check_out}
+                userShift={user?.shift_id}
+              />
             </div>
           </SectionCard>
         </div>

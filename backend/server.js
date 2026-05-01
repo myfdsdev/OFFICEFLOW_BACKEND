@@ -34,6 +34,7 @@ import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
 import shiftRoutes from "./src/routes/shift.Routes.js";
 import activityRoutes from "./src/routes/activity.Routes.js";
 import leaderboardRoutes from "./src/routes/leaderboard.Routes.js";
+import analyticsRoutes from "./src/routes/analytics.Routes.js";
 // Load env FIRST
 
 // Config & middleware imports
@@ -67,7 +68,7 @@ const httpServer = createServer(app); // for socket.io
 app.use(helmet());
 
 // Allow multiple frontend origins (dev + production)
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173,http://localhost:5174")
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
   .split(",")
   .map((url) => url.trim());
 
@@ -155,6 +156,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/functions", functionsRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 // ==========================================
 // ERROR HANDLING (must be last!)

@@ -38,6 +38,7 @@ import OnlineStatusIndicator from "./components/admin/OnlineStatusIndicator";
 const employeeNavItems = [
   { name: "Dashboard", page: "Dashboard", icon: LayoutDashboard },
   { name: "Attendance History", page: "AttendanceHistory", icon: Clock },
+  { name: "My Stats", page: "MyStats", icon: BarChart3 },
   { name: "Leave Requests", page: "LeaveRequests", icon: FileText },
   { name: "Leaderboard", page: "Leaderboard", icon: Trophy },
   { name: "Projects", page: "Projects", icon: LayoutDashboard },
@@ -52,6 +53,7 @@ const adminNavItems = [
   { name: "Settings", page: "Settings", icon: Settings },
   { name: "My Dashboard", page: "Dashboard", icon: Users },
   { name: "Attendance History", page: "AttendanceHistory", icon: Clock },
+  { name: "My Stats", page: "MyStats", icon: BarChart3 },
   { name: "Leave Requests", page: "LeaveRequests", icon: FileText },
   { name: "Leaderboard", page: "Leaderboard", icon: Trophy },
   { name: "Projects", page: "Projects", icon: LayoutDashboard },

@@ -23,18 +23,18 @@ const PUBLIC_PAGES = [
   "Welcome",
   "Login",
   "Register",
-  "ResetPassword",
   "PrivacyPolicy",
   "AccessDenied",
+  "ResetPassword",
 ];
 
 const NO_LAYOUT_PAGES = [
   "Welcome",
   "Login",
   "Register",
-  "ResetPassword",
   "CompleteProfile",
   "AccessDenied",
+  "ResetPassword",
 ];
 
 const LoadingScreen = () => {

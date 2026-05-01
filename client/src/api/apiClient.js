@@ -78,7 +78,6 @@ const normalizeList = (data) => {
     data.tasks ||
     data.companies ||
     data.subscriptions ||
-    data.achievements ||
     []
   );
 };
@@ -368,22 +367,6 @@ const users = {
     });
     return res.data;
   },
-  adminUpdate: async (userId, updates) => {
-    const res = await api.put(`/users/${userId}`, updates);
-    return res.data.user || res.data;
-  },
-  adminDelete: async (userId) => {
-    const res = await api.delete(`/users/${userId}`);
-    return res.data;
-  },
-  sendPasswordReset: async (userId) => {
-    const res = await api.post(`/users/${userId}/send-password-reset`);
-    return res.data;
-  },
-  resetPassword: async ({ token, email, newPassword }) => {
-    const res = await api.post("/auth/reset-password", { token, email, newPassword });
-    return res.data;
-  },
 };
 
 // ========== SHIFTS ==========
@@ -428,6 +411,26 @@ const leaderboard = {
   },
 };
 
+// ========== ANALYTICS ==========
+const analytics = {
+  me: async () => {
+    const res = await api.get("/analytics/me");
+    return res.data;
+  },
+  user: async (userId) => {
+    const res = await api.get(`/analytics/user/${userId}`);
+    return res.data;
+  },
+  team: async () => {
+    const res = await api.get("/analytics/team");
+    return res.data;
+  },
+  trends: async (userId) => {
+    const res = await api.get(`/analytics/trends/${userId}`);
+    return res.data;
+  },
+};
+
 // ========== APP LOGS (no-op) ==========
 const appLogs = {
   logUserInApp: async (pageName) => ({ success: true }),
@@ -447,9 +450,10 @@ export const base44 = {
   integrations,
   upload,
   users,
+  appLogs,
   shifts,
   leaderboard,
-  appLogs,
+  analytics,
 };
 
 export default api;

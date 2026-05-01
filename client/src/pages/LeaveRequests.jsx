@@ -355,7 +355,7 @@ export default function LeaveRequests() {
 
   return (
     <div className="min-h-screen bg-black pb-10 overflow-x-hidden">
-      <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8 space-y-6 overflow-x-hidden">
+      <div className="w-full px-4 md:px-6 lg:px-8 py-6 lg:py-8 space-y-6 overflow-x-hidden">
 
         <Banner type={feedback.type} message={feedback.message} />
 

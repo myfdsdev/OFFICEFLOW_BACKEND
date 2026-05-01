@@ -58,7 +58,7 @@ export default function NotificationPermissionPrompt() {
           exit={{ opacity: 0, y: -20 }}
           className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] max-w-md w-full mx-4"
         >
-          <Card className="shadow-2xl border-2 border-indigo-400 bg-white">
+          <Card className="shadow-2xl border-2 border-lime-400/10 bg-black">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export default function NotificationPermissionPrompt() {
               {permission === 'default' && (
                 <Button 
                   onClick={requestPermission}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700"
+                  className="w-full bg-lime-400 text-black hover:bg-lime-400"
                 >
                   <Bell className="w-4 h-4 mr-2" />
                   Enable Notifications
@@ -119,7 +119,7 @@ export default function NotificationPermissionPrompt() {
               <Button
                 variant="ghost"
                 onClick={() => setShowPrompt(false)}
-                className="w-full text-gray-600"
+                className="w-full text-gray-600 hover:bg-lime-400"
               >
                 Maybe Later
               </Button>

@@ -75,13 +75,12 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
-                  backgroundColor: black
                 >
                   <Link
                     to={createPageUrl("EmployeeDetails") + `?id=${employee.id}`}
-                    className="flex items-center justify-between p-4 rounded-xl bg-black hover:bg-[#061006]/80 transition-colors block"
+                    className="flex items-center justify-between gap-4 p-4 rounded-xl bg-[#020806] hover:bg-[#061006]/80 transition-colors"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
                       <div className="relative">
                         <Avatar className="w-12 h-12 bg-lime-400/15 text-lime-300">
                           {employee.profile_photo ? (
@@ -96,18 +95,18 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
                           <OnlineStatusIndicator isOnline={isOnline} size="md" />
                         </div>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-white">{employee.full_name}</p>
                         <p className="text-sm text-lime-100/50 flex items-center gap-1">
                           <Mail className="w-3 h-3" />
-                          {employee.email}
+                          <span className="truncate">{employee.email}</span>
                         </p>
                         {employee.department && (
                           <p className="text-xs text-lime-100/35">{employee.department}</p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-3">
                       {status && (
                         <Badge className={`${statusStyles[status]} capitalize`}>
                           {status.replace("_", " ")}

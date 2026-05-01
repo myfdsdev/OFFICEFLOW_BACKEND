@@ -13,6 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Clock4, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 
+const fieldClass =
+  "bg-black border-lime-400/15 text-white placeholder:text-lime-100/30 focus-visible:ring-lime-400/30";
+
+const labelClass = "text-xs font-semibold uppercase tracking-wider text-lime-100/45";
+
 export default function CustomShifts() {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,58 +85,82 @@ export default function CustomShifts() {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-lime-400/15 bg-black overflow-hidden">
+      <CardHeader className="border-b border-lime-400/15 bg-[#020806]/80">
         <CardTitle className="flex items-center gap-2">
-          <Clock4 className="w-5 h-5 text-indigo-600" />
-          Custom Shifts
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-lime-400/15 bg-lime-400/10">
+            <Clock4 className="w-5 h-5 text-lime-300" />
+          </span>
+          <span>Custom Shifts</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-lime-100/45">
           Create named shifts (e.g. Morning, Night) and assign them to specific employees.
           An employee with an assigned shift overrides the global office hours.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading ? (
-          <div className="text-sm text-gray-400">Loading shifts...</div>
+          <div className="rounded-xl border border-lime-400/10 bg-[#020806] px-4 py-6 text-center text-sm text-lime-100/35">
+            Loading shifts...
+          </div>
         ) : shifts.length === 0 && !creating ? (
-          <div className="text-sm text-gray-500">No custom shifts yet.</div>
+          <div className="rounded-xl border border-dashed border-lime-400/15 bg-[#020806] px-4 py-8 text-center">
+            <Clock4 className="mx-auto mb-3 h-8 w-8 text-lime-100/25" />
+            <p className="text-sm font-medium text-lime-100/65">No custom shifts yet.</p>
+            <p className="mt-1 text-xs text-lime-100/35">
+              Add a shift to create alternate office timings.
+            </p>
+          </div>
         ) : (
           <div className="space-y-2">
             {shifts.map((s) =>
               editingId === s._id ? (
                 <div
                   key={s._id}
-                  className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end p-3 border rounded-lg bg-indigo-50"
+                  className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end p-4 border border-lime-400/20 rounded-xl bg-[#020806]"
                 >
                   <div>
-                    <Label>Name</Label>
+                    <Label className={labelClass}>Name</Label>
                     <Input
+                      className={fieldClass}
                       value={draft.name}
                       onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label>Start</Label>
+                    <Label className={labelClass}>Start</Label>
                     <Input
+                      className={fieldClass}
                       type="time"
                       value={draft.start_time}
                       onChange={(e) => setDraft({ ...draft, start_time: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label>End</Label>
+                    <Label className={labelClass}>End</Label>
                     <Input
+                      className={fieldClass}
                       type="time"
                       value={draft.end_time}
                       onChange={(e) => setDraft({ ...draft, end_time: e.target.value })}
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleUpdate(s._id)}>
+                    <Button
+                      size="icon"
+                      onClick={() => handleUpdate(s._id)}
+                      className="h-10 w-10 bg-lime-400 text-black hover:bg-lime-300"
+                      title="Save shift"
+                    >
                       <Check className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setEditingId(null)}
+                      className="h-10 w-10 border-lime-400/15 bg-black text-lime-100/65 hover:bg-lime-400/10 hover:text-white"
+                      title="Cancel edit"
+                    >
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -139,23 +168,35 @@ export default function CustomShifts() {
               ) : (
                 <div
                   key={s._id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex items-center justify-between gap-4 p-4 border border-lime-400/10 rounded-xl bg-[#020806] transition-colors hover:border-lime-400/25 hover:bg-[#061006]"
                 >
-                  <div>
-                    <div className="font-semibold text-gray-900">{s.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {s.start_time} – {s.end_time}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-lime-400/15 bg-lime-400/10">
+                      <Clock4 className="h-5 w-5 text-lime-300" />
+                    </div>
+                    <div className="min-w-0">
+                    <div className="font-semibold text-white">{s.name}</div>
+                    <div className="text-sm text-lime-100/50">
+                      {s.start_time} - {s.end_time}
+                    </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => startEdit(s)}>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => startEdit(s)}
+                      className="h-9 w-9 border-lime-400/15 bg-black text-lime-100/65 hover:bg-lime-400/10 hover:text-white"
+                      title="Edit shift"
+                    >
                       <Pencil className="w-4 h-4" />
                     </Button>
                     <Button
-                      size="sm"
+                      size="icon"
                       variant="outline"
-                      className="text-red-600 hover:text-red-700"
+                      className="h-9 w-9 border-rose-500/20 bg-rose-500/5 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
                       onClick={() => handleDelete(s._id)}
+                      title="Delete shift"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -167,42 +208,52 @@ export default function CustomShifts() {
         )}
 
         {creating ? (
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end p-3 border-2 border-dashed rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-3 items-end p-4 border-2 border-dashed border-lime-400/20 rounded-xl bg-[#020806]">
             <div>
-              <Label>Name</Label>
+              <Label className={labelClass}>Name</Label>
               <Input
+                className={fieldClass}
                 placeholder="e.g. Morning Shift"
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
             </div>
             <div>
-              <Label>Start</Label>
+              <Label className={labelClass}>Start</Label>
               <Input
+                className={fieldClass}
                 type="time"
                 value={draft.start_time}
                 onChange={(e) => setDraft({ ...draft, start_time: e.target.value })}
               />
             </div>
             <div>
-              <Label>End</Label>
+              <Label className={labelClass}>End</Label>
               <Input
+                className={fieldClass}
                 type="time"
                 value={draft.end_time}
                 onChange={(e) => setDraft({ ...draft, end_time: e.target.value })}
               />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleCreate}>
+              <Button
+                size="icon"
+                onClick={handleCreate}
+                className="h-10 w-10 bg-lime-400 text-black hover:bg-lime-300"
+                title="Create shift"
+              >
                 <Check className="w-4 h-4" />
               </Button>
               <Button
-                size="sm"
+                size="icon"
                 variant="outline"
+                className="h-10 w-10 border-lime-400/15 bg-black text-lime-100/65 hover:bg-lime-400/10 hover:text-white"
                 onClick={() => {
                   setCreating(false);
                   setDraft({ name: "", start_time: "09:00", end_time: "18:00" });
                 }}
+                title="Cancel create"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -212,7 +263,7 @@ export default function CustomShifts() {
           <Button
             variant="outline"
             onClick={() => setCreating(true)}
-            className="w-full border-dashed"
+            className="w-full border-dashed border-lime-400/20 bg-black text-lime-100/70 hover:bg-lime-400/10 hover:text-white hover:border-lime-400/35"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add new shift

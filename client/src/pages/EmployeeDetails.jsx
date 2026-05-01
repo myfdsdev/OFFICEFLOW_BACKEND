@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -131,7 +131,7 @@ export default function EmployeeDetails() {
                     {employee.email}
                   </p>
                   {employee.department && (
-                    <p className="text-lime-100/50 text-sm mt-1">{employee.department} • {employee.employee_id}</p>
+                    <p className="text-lime-100/50 text-sm mt-1">{employee.department} - {employee.employee_id}</p>
                   )}
                   <div className="flex items-center justify-center md:justify-start gap-2 mt-2">
                     {employee.role === 'admin' ? (

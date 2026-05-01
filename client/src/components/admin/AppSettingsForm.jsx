@@ -101,7 +101,7 @@ export default function AppSettingsForm() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="border-lime-400/10 bg-[#020806]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Type className="w-5 h-5 text-lime-400" />
@@ -121,7 +121,7 @@ export default function AppSettingsForm() {
               placeholder="e.g. AttendEase"
               className="border border-lime-400/10"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-lime-100/45">
               Shown in the sidebar and login page
             </p>
           </div>
@@ -134,14 +134,14 @@ export default function AppSettingsForm() {
               placeholder="e.g. AttendEase - Workforce Management"
               className="border border-lime-400/10"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-lime-100/45">
               Shown in the browser tab title
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-lime-400/10 bg-[#020806]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-lime-400" />
@@ -196,7 +196,7 @@ export default function AppSettingsForm() {
                 )}
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-lime-100/45">
                 Square image recommended, max 2MB. PNG with transparent background works best.
               </p>
             </div>
@@ -204,7 +204,7 @@ export default function AppSettingsForm() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-lime-400/10 bg-[#020806]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ImageIcon className="w-5 h-5 text-lime-400" />
@@ -257,7 +257,7 @@ export default function AppSettingsForm() {
                 )}
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-lime-100/45">
                 Square 32x32 or 64x64, max 2MB
               </p>
             </div>

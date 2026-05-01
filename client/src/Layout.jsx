@@ -19,6 +19,8 @@ import {
   Settings,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Users,
   Clock,
   ChevronRight,
@@ -65,6 +67,7 @@ const adminNavItems = [
 export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     base44.auth.me().then(setUser);
@@ -90,15 +93,17 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.logout();
   };
 
-  const NavLinks = ({ onClick }) => (
+  const NavLinks = ({ onClick, collapsed = false }) => (
     <div className="space-y-4">
       {user?.role === "admin" && (
         <div>
+          {!collapsed && (
           <div className="px-4 py-2">
             <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               Admin Panel
             </p>   
           </div>
+          )}
 
           <div className="space-y-1">
             {adminNavItems.slice(0, 3).map((item) => {
@@ -110,7 +115,10 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     to={createPageUrl(item.page)}
                     onClick={onClick}
-                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
+                    title={collapsed ? item.name : undefined}
+                    className={`flex items-center rounded-2xl py-3 transition-all ${
+                      collapsed ? "justify-center px-3" : "gap-3 px-4"
+                    } ${
                       isActive
                         ? "bg-lime-400/10 text-lime-300 font-medium"
                         : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
@@ -122,11 +130,13 @@ export default function Layout({ children, currentPageName }) {
                       }`}
                     />
 
-                    <span className="flex-1 whitespace-nowrap">
-                      {item.name}
-                    </span>
+                    {!collapsed && (
+                      <span className="flex-1 whitespace-nowrap">
+                        {item.name}
+                      </span>
+                    )}
 
-                    {isActive && <ChevronRight className="w-4 h-4" />}
+                    {isActive && !collapsed && <ChevronRight className="w-4 h-4" />}
                   </Link>
                 </div>
               );
@@ -136,7 +146,7 @@ export default function Layout({ children, currentPageName }) {
       )}
 
       <div>
-        {user?.role === "admin" && (
+        {user?.role === "admin" && !collapsed && (
           <div className="px-4 py-2">
             <p className="text-xs font-semibold text-lime-100/45 uppercase tracking-wider">
               My Account
@@ -157,7 +167,10 @@ export default function Layout({ children, currentPageName }) {
                 <Link
                   to={createPageUrl(item.page)}
                   onClick={onClick}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition-all ${
+                  title={collapsed ? item.name : undefined}
+                  className={`flex items-center rounded-2xl py-3 transition-all ${
+                    collapsed ? "justify-center px-3" : "gap-3 px-4"
+                  } ${
                     isActive
                       ? "bg-lime-400/10 text-lime-300 font-medium"
                       : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
@@ -169,15 +182,17 @@ export default function Layout({ children, currentPageName }) {
                     }`}
                   />
 
-                  <span
-                    className={`flex-1 whitespace-nowrap ${
-                      item.name === "Direct Messages" ? "mr-8" : ""
-                    }`}
-                  >
-                    {item.name}
-                  </span>
+                  {!collapsed && (
+                    <span
+                      className={`flex-1 whitespace-nowrap ${
+                        item.name === "Direct Messages" ? "mr-8" : ""
+                      }`}
+                    >
+                      {item.name}
+                    </span>
+                  )}
 
-                  {item.name === "Direct Messages" && user && (
+                  {item.name === "Direct Messages" && user && !collapsed && (
                     <div className="pointer-events-auto">
                       <NotificationBell
                         userEmail={user.email}
@@ -186,7 +201,7 @@ export default function Layout({ children, currentPageName }) {
                     </div>
                   )}
 
-                  {isActive && <ChevronRight className="w-4 h-4" />}
+                  {isActive && !collapsed && <ChevronRight className="w-4 h-4" />}
                 </Link>
               </div>
             );
@@ -200,20 +215,48 @@ export default function Layout({ children, currentPageName }) {
     <div className="min-h-screen bg-black text-white">
       <NotificationPermissionPrompt />
 
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-72 bg-[#020806]/90 border-r border-lime-400/15 p-4">
-        <div className="px-4 py-4 mb-6">
-          <AppLogo size="md" />
+      <aside
+        className={`hidden lg:flex flex-col fixed left-0 top-0 bottom-0 bg-[#020806]/90 border-r border-lime-400/15 p-4 transition-all duration-300 ${
+          sidebarCollapsed ? "w-24" : "w-72"
+        }`}
+      >
+        <div
+          className={`py-4 mb-6 flex items-center ${
+            sidebarCollapsed ? "justify-center px-0" : "justify-between px-4"
+          }`}
+        >
+          {!sidebarCollapsed && <AppLogo size="md" />}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarCollapsed((value) => !value)}
+            className="text-lime-100/65 hover:text-white hover:bg-lime-400/10"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="w-5 h-5" />
+            ) : (
+              <PanelLeftClose className="w-5 h-5" />
+            )}
+          </Button>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
-          <NavLinks />
+          <NavLinks collapsed={sidebarCollapsed} />
         </nav>
 
         {user && (
           <div className="border-t border-lime-400/15 pt-4 mt-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-lime-400/10 transition-colors">
+                <button
+                  className={`flex items-center w-full py-3 rounded-xl hover:bg-lime-400/10 transition-colors ${
+                    sidebarCollapsed ? "justify-center px-2" : "gap-3 px-4"
+                  }`}
+                  title={sidebarCollapsed ? user.full_name : undefined}
+                >
                   <div className="relative">
                     <Avatar className="w-10 h-10 border border-lime-400/20">
                       {user.profile_photo ? (
@@ -234,14 +277,16 @@ export default function Layout({ children, currentPageName }) {
                     </div>
                   </div>
 
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">
-                      {user.full_name}
-                    </p>
-                    <p className="text-xs text-lime-100/45 truncate">
-                      {user.email}
-                    </p>
-                  </div>
+                  {!sidebarCollapsed && (
+                    <div className="text-left flex-1 min-w-0">
+                      <p className="font-medium text-white truncate">
+                        {user.full_name}
+                      </p>
+                      <p className="text-xs text-lime-100/45 truncate">
+                        {user.email}
+                      </p>
+                    </div>
+                  )}
                 </button>
               </DropdownMenuTrigger>
 
@@ -345,7 +390,11 @@ export default function Layout({ children, currentPageName }) {
         </div>
       </header>
 
-      <main className="lg:ml-72 pt-16 lg:pt-0">
+      <main
+        className={`pt-16 lg:pt-0 transition-all duration-300 ${
+          sidebarCollapsed ? "lg:ml-24" : "lg:ml-72"
+        }`}
+      >
         <div className="min-h-screen bg-black">{children}</div>
       </main>
     </div>

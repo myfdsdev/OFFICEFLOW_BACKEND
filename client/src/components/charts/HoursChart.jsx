@@ -13,10 +13,10 @@ import { BarChart3 } from "lucide-react";
 
 export default function HoursChart({ data = [] }) {
   return (
-    <Card className="border-0 shadow-sm bg-white">
+    <Card>
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-indigo-600" />
+          <BarChart3 className="w-5 h-5 text-lime-300" />
           Hours Per Day
         </CardTitle>
       </CardHeader>
@@ -24,19 +24,21 @@ export default function HoursChart({ data = [] }) {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
-              <CartesianGrid strokeDasharray="4 4" stroke="#e5e7eb" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 12 }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} tickLine={false} axisLine={false} />
+              <CartesianGrid strokeDasharray="4 4" stroke="rgba(163, 230, 53, 0.12)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: "rgba(236,255,220,0.55)", fontSize: 12 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: "rgba(236,255,220,0.55)", fontSize: 12 }} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{
-                  border: "1px solid #e5e7eb",
+                  background: "#020806",
+                  color: "#fff",
+                  border: "1px solid rgba(163, 230, 53, 0.18)",
                   borderRadius: 12,
-                  boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
+                  boxShadow: "0 10px 25px rgba(0, 0, 0, 0.28)",
                 }}
                 formatter={(value) => [`${value}h`, "Hours"]}
                 labelFormatter={(label) => `Day ${label}`}
               />
-              <Bar dataKey="hours" fill="#6366f1" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="hours" fill="#a3e635" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

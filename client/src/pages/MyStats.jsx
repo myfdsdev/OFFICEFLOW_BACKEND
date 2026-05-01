@@ -66,10 +66,10 @@ export default function MyStats() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             My Working Info
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-lime-100/50 mt-1">
             Hours, attendance quality, trends, and weekly insights
           </p>
         </motion.div>
@@ -85,17 +85,17 @@ export default function MyStats() {
           <StatsCard title="Leaves" value={stats.totalLeavesTaken || 0} subtitle="Approved days" icon={Umbrella} color="blue" />
         </div>
 
-        <Card className="border-0 shadow-sm bg-white mb-6">
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-600" />
+              <TrendingUp className="w-5 h-5 text-lime-300" />
               Weekly Insights
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-4 gap-3">
               {insightText(data).map((insight) => (
-                <div key={insight} className="rounded-xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                <div key={insight} className="rounded-xl border border-lime-400/10 bg-[#020806] p-4 text-sm font-medium text-lime-100/70">
                   {insight}
                 </div>
               ))}

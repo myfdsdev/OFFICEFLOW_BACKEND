@@ -26,7 +26,7 @@ const BADGE_META = {
 
 const ALL_BADGES = Object.keys(BADGE_META);
 
-export default function AchievementWall({ initialBadges = [] }) {
+export default function AchievementWall({ initialBadges = [], embedded = false }) {
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,41 +54,66 @@ export default function AchievementWall({ initialBadges = [] }) {
     ...achievements.map((achievement) => achievement.badge_type),
   ]);
 
+  const content = (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {ALL_BADGES.map((badgeType) => {
+          const meta = BADGE_META[badgeType];
+          const Icon = meta.icon || Award;
+          const earned = earnedTypes.has(badgeType);
+
+          return (
+            <div
+              key={badgeType}
+              className={`rounded-xl border p-3 text-center transition ${
+                earned
+                  ? "border-lime-400/15 bg-[#020806] text-white"
+                  : "border-lime-400/10 bg-black/40 text-lime-100/35 opacity-75"
+              }`}
+            >
+              <div
+                className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl ${
+                  earned ? meta.color : "bg-[#061006] text-lime-100/25"
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+              <p className="mt-2 text-sm font-semibold leading-tight">
+                {meta.label}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+      {loading && <p className="mt-4 text-sm text-lime-100/35">Loading awards...</p>}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="rounded-2xl border border-lime-400/15 bg-black/50 overflow-hidden">
+        <div className="px-5 py-4 border-b border-lime-400/15 bg-[#020806]/40">
+          <div className="flex items-center gap-2">
+            <Award className="w-4 h-4 text-lime-300 shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-white">Achievement Wall</h3>
+              <p className="text-xs text-lime-100/45 mt-0.5">
+                Badges earned from attendance, points, and team activity.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5">{content}</div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader>
         <CardTitle>Achievement Wall</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {ALL_BADGES.map((badgeType) => {
-            const meta = BADGE_META[badgeType];
-            const Icon = meta.icon || Award;
-            const earned = earnedTypes.has(badgeType);
-
-            return (
-              <div
-                key={badgeType}
-                className={`rounded-xl p-3 text-center transition ${
-                  earned ? "bg-gray-50" : "bg-gray-50 text-gray-400 opacity-70"
-                }`}
-              >
-                <div
-                  className={`mx-auto flex h-11 w-11 items-center justify-center rounded-xl ${
-                    earned ? meta.color : "bg-white text-gray-300"
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <p className="mt-2 text-sm font-semibold leading-tight">
-                  {meta.label}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-        {loading && <p className="mt-4 text-sm text-gray-400">Loading awards...</p>}
-      </CardContent>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }

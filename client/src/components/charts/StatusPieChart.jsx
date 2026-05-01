@@ -29,10 +29,10 @@ export default function StatusPieChart({ data = [] }) {
   const chartData = data.filter((item) => item.count > 0);
 
   return (
-    <Card className="border-0 shadow-sm bg-white">
+    <Card>
       <CardHeader>
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <PieIcon className="w-5 h-5 text-indigo-600" />
+          <PieIcon className="w-5 h-5 text-lime-300" />
           Status Breakdown
         </CardTitle>
       </CardHeader>
@@ -56,9 +56,11 @@ export default function StatusPieChart({ data = [] }) {
                 <Tooltip
                   formatter={(value, name) => [value, labelMap[name] || name]}
                   contentStyle={{
-                    border: "1px solid #e5e7eb",
+                    background: "#020806",
+                    color: "#fff",
+                    border: "1px solid rgba(163, 230, 53, 0.18)",
                     borderRadius: 12,
-                    boxShadow: "0 10px 25px rgba(15, 23, 42, 0.08)",
+                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.28)",
                   }}
                 />
               </PieChart>
@@ -66,15 +68,15 @@ export default function StatusPieChart({ data = [] }) {
           </div>
           <div className="space-y-2">
             {chartData.map((item) => (
-              <div key={item.status} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2">
+              <div key={item.status} className="flex items-center justify-between rounded-xl border border-lime-400/10 bg-[#020806] px-3 py-2">
                 <div className="flex items-center gap-2">
                   <span
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: COLORS[item.status] || "#94a3b8" }}
                   />
-                  <span className="text-sm text-gray-600">{labelMap[item.status] || item.status}</span>
+                  <span className="text-sm text-lime-100/65">{labelMap[item.status] || item.status}</span>
                 </div>
-                <span className="text-sm font-semibold text-gray-900">{item.count}</span>
+                <span className="text-sm font-semibold text-white">{item.count}</span>
               </div>
             ))}
           </div>

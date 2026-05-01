@@ -48,14 +48,14 @@ export default function AttendanceHistory({ attendance, limit }) {
     <Card className="border-0 shadow-sm bg-black text-white">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-indigo-600" />
+          <Calendar className="w-5 h-5 text-lime-300" />
           Recent Activity
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {displayData.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No attendance records yet</p>
+            <p className="text-lime-100/35 text-center py-8">No attendance records yet</p>
           ) : (
             displayData.map((record, index) => {
               const timeWorked = calculateTotalHours(record.first_check_in, record.last_check_out);
@@ -90,10 +90,10 @@ export default function AttendanceHistory({ attendance, limit }) {
                     <div className="text-right">
                       {timeWorked ? (
                         <>
-                          <p className="text-xl font-bold text-gray-900">
+                          <p className="text-xl font-bold text-white">
                             {timeWorked.hours}h {timeWorked.minutes}m
                           </p>
-                          <p className="text-xs text-gray-500 uppercase">Total Worked</p>
+                          <p className="text-xs text-lime-100/45 uppercase">Total Worked</p>
                         </>
                       ) : (
                         <Badge className={`${statusStyles[record.status]} border capitalize`}>
@@ -105,12 +105,12 @@ export default function AttendanceHistory({ attendance, limit }) {
 
                   {record.first_check_in && (
                     <div className="flex items-center gap-2 text-sm bg-black rounded-lg p-3 border border-lime-400/10">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-700">{format(new Date(record.first_check_in), 'HH:mm')}</span>
-                      <span className="text-gray-400">→</span>
-                      <span className="font-medium text-gray-700">{record.last_check_out ? format(new Date(record.last_check_out), 'HH:mm') : "Working..."}</span>
+                      <Clock className="w-4 h-4 text-lime-100/45" />
+                      <span className="font-medium text-lime-100/70">{format(new Date(record.first_check_in), 'HH:mm')}</span>
+                      <span className="text-lime-100/40">-&gt;</span>
+                      <span className="font-medium text-lime-100/70">{record.last_check_out ? format(new Date(record.last_check_out), 'HH:mm') : "Working..."}</span>
                       {timeWorked && (
-                        <span className="ml-auto text-xs text-indigo-600 font-medium">
+                        <span className="ml-auto text-xs text-lime-300 font-medium">
                           {timeWorked.totalMinutes} minutes
                         </span>
                       )}

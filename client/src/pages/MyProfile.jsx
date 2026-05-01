@@ -617,6 +617,11 @@ export default function MyProfile() {
                         </div>
                       </SectionCard>
 
+                      <AchievementWall
+                        initialBadges={user.badges || []}
+                        embedded
+                      />
+
                       <div className="p-4 rounded-xl bg-black/50 border border-lime-400/15">
                         <div className="flex items-start gap-3 text-lime-100/55 text-sm italic">
                           <Shield className="w-4 h-4 text-lime-300 shrink-0 mt-0.5" />
@@ -635,10 +640,6 @@ export default function MyProfile() {
                 </AnimatePresence>
               </CardContent>
             </Card>
-
-            <div className="mt-8">
-              <AchievementWall initialBadges={user.badges || []} />
-            </div>
           </div>
         </div>
       </div>

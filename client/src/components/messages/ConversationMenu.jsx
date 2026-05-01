@@ -10,7 +10,6 @@ import {
 import {
   MoreVertical,
   User,
-  MessageSquare,
   Star,
   Copy,
   Search,

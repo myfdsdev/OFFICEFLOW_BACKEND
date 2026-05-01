@@ -13,6 +13,7 @@ import DirectMessages from './pages/DirectMessages';
 import EmployeeDetails from './pages/EmployeeDetails';
 import Groups from './pages/Groups';
 import LeaveRequests from './pages/LeaveRequests';
+import Leaderboard from './pages/Leaderboard';
 import MyProfile from './pages/MyProfile';
 import Pricing from './pages/Pricing';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -37,6 +38,7 @@ export const PAGES = {
     "EmployeeDetails": EmployeeDetails,
     "Groups": Groups,
     "LeaveRequests": LeaveRequests,
+    "Leaderboard": Leaderboard,
     "MyProfile": MyProfile,
     "Pricing": Pricing,
     "PrivacyPolicy": PrivacyPolicy,

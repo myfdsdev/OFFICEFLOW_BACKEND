@@ -60,6 +60,7 @@ const ENTITY_ROUTES = {
   Task: "/tasks",
   Company: "/companies",
   Subscription: "/subscriptions",
+  Achievement: "/leaderboard/me",
 };
 
 // ========== HELPERS ==========
@@ -77,6 +78,7 @@ const normalizeList = (data) => {
     data.tasks ||
     data.companies ||
     data.subscriptions ||
+    data.achievements ||
     []
   );
 };
@@ -408,6 +410,24 @@ const shifts = {
   },
 };
 
+// ========== LEADERBOARD ==========
+const leaderboard = {
+  list: async ({ month, limit = 50 } = {}) => {
+    const res = await api.get("/leaderboard", {
+      params: { month, limit },
+    });
+    return res.data;
+  },
+  me: async () => {
+    const res = await api.get("/leaderboard/me");
+    return res.data;
+  },
+  awardEmployeeOfMonth: async (month) => {
+    const res = await api.post("/leaderboard/employee-of-month", { month });
+    return res.data;
+  },
+};
+
 // ========== APP LOGS (no-op) ==========
 const appLogs = {
   logUserInApp: async (pageName) => ({ success: true }),
@@ -428,6 +448,7 @@ export const base44 = {
   upload,
   users,
   shifts,
+  leaderboard,
   appLogs,
 };
 

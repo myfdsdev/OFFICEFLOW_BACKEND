@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema({
       'check_in', 'check_out', 'leave_submitted', 'leave_approved',
       'leave_rejected', 'new_message', 'group_message', 'added_to_group',
       'removed_from_group', 'project_assigned', 'task_assigned',
-      'attendance_reminder', 'broadcast', 'general',
+      'attendance_reminder', 'achievement', 'broadcast', 'general',
     ],
     default: 'general',
   },

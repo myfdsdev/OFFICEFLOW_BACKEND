@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Plus, Users } from "lucide-react";
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import CreateGroupDialog from '../components/groups/CreateGroupDialog';
 import GroupCard from '../components/groups/GroupCard';
 import GroupMembersDialog from '../components/groups/GroupMembersDialog';

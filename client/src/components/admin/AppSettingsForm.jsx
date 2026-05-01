@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Upload, Save, Image as ImageIcon, Type, Palette } from 'lucide-react';
+import { Upload, Save, Image as ImageIcon, Type } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function AppSettingsForm() {

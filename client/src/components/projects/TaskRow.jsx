@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Trash2, FileText, Calendar, Upload } from "lucide-react";
+import { Trash2, FileText, Upload } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
 import { base44 } from '@/api/base44Client';
 import FilesDialog from './FilesDialog';
 import NotesPopup from './NotesPopup';

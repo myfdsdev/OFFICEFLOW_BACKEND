@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { User, Mail, Phone, Building, IdCard, Shield, Upload, Save } from "lucide-react";
+import { User, Phone, Building, IdCard, Shield, Upload, Save } from "lucide-react";
 import { toast } from "react-hot-toast";
+import AchievementWall from "@/components/profile/AchievementWall";
+import RankBadge from "@/components/profile/RankBadge";
 
 const departments = [
   "Video Editor",
@@ -216,6 +218,12 @@ export default function MyProfile() {
                 )}
               </Badge>
 
+              <RankBadge
+                rank={user.current_rank}
+                points={user.total_points}
+                className="mt-5"
+              />
+
               <div className="mt-6 space-y-3 text-left">
                 {user.department && (
                   <div className="flex items-center gap-3 text-sm">
@@ -363,6 +371,10 @@ export default function MyProfile() {
               )}
             </CardContent>
           </Card>
+
+          <div className="md:col-span-3">
+            <AchievementWall initialBadges={user.badges || []} />
+          </div>
         </div>
       </div>
     </div>

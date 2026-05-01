@@ -109,6 +109,10 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: ["monday", "tuesday", "wednesday", "thursday", "friday"],
     },
+    total_points: { type: Number, default: 0 },
+    current_rank: { type: Number, default: 0 },
+    badges: { type: [String], default: [] },
+    last_rank_calc: { type: Date, default: null },
   },
   { timestamps: true },
 );

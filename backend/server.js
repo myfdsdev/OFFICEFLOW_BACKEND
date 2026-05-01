@@ -33,6 +33,7 @@ import functionsRoutes from "./src/routes/functions.Routes.js";
 import appSettingsRoutes from "./src/routes/appSettings.Routes.js";
 import shiftRoutes from "./src/routes/shift.Routes.js";
 import activityRoutes from "./src/routes/activity.Routes.js";
+import leaderboardRoutes from "./src/routes/leaderboard.Routes.js";
 // Load env FIRST
 
 // Config & middleware imports
@@ -153,6 +154,7 @@ app.use("/api/attendance-sessions", attendanceSessionRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/functions", functionsRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 
 // ==========================================
 // ERROR HANDLING (must be last!)

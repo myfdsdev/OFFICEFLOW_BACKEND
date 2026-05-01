@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Settings as SettingsIcon,
-  Mail,
   Trash2,
   KeyRound,
   Save,

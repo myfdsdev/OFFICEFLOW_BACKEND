@@ -105,7 +105,7 @@ export default function DirectMessagesList({ currentUser, onUserSelect }) {
       messageUnsubscribe();
       userUnsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [currentUser]);
 
   const getInitials = (name) => {

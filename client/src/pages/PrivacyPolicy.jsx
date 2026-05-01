@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { Shield, Lock, Eye, Database, Bell, MapPin } from "lucide-react";
+import { Shield, Lock, Eye, Database, MapPin } from "lucide-react";
 
 export default function PrivacyPolicy() {
   return (

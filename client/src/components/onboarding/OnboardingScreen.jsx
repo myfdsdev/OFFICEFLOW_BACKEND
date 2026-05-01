@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, Calendar, FileText, MapPin, Camera, Bell, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { Clock, Calendar, FileText, MapPin, ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
 
 const onboardingSteps = [
   {

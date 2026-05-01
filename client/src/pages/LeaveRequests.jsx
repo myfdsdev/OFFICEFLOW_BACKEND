@@ -3,8 +3,8 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Calendar, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlusCircle, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 import LeaveRequestForm from '../components/leave/LeaveRequestForm';

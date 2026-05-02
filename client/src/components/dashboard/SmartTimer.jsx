@@ -1,34 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { useAppSettings } from '@/lib/AppSettingsContext';
-import { Flame, Clock, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useAppSettings } from "@/lib/AppSettingsContext";
+import { Flame, Clock, CheckCircle2 } from "lucide-react";
 
 /**
- * Smart timer (live-clock edition):
- * - Big display: live current wall-clock time (HH:MM:SS), updates every second
- * - Subline: today's date
- * - Status line below: countdown / overtime / total worked / not checked in
+ * SmartTimer:
+ * - BIG DISPLAY: Counts UP from check-in (HH:MM:SS)
+ * - After office_end_time → switches to ORANGE/RED "OVERTIME" mode
+ * - Not checked in → "--:--:--"
+ * - Checked out → shows total hours worked
  */
-export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift, className = "" }) {
+export default function SmartTimer({
+  firstCheckIn,
+  lastCheckOut,
+  userShift,
+  className = "",
+}) {
   const { settings } = useAppSettings();
-  const [now, setNow] = useState(() => (lastCheckOut ? new Date(lastCheckOut) : new Date()));
+  const [now, setNow] = useState(new Date());
 
   const effectiveEndTime = userShift?.end_time || settings.office_end_time;
   const shiftLabel = userShift?.name || null;
 
-  // Tick once per second
+  // Tick every second (only while active)
   useEffect(() => {
-    if (lastCheckOut) {
-      setNow(new Date(lastCheckOut));
-      return undefined;
-    }
-
+    if (!firstCheckIn || lastCheckOut) return;
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
-  }, [lastCheckOut]);
+  }, [firstCheckIn, lastCheckOut]);
 
   const parseTimeToday = (timeStr) => {
     if (!timeStr) return null;
-    const [hours, minutes] = timeStr.split(':').map(Number);
+    const [hours, minutes] = timeStr.split(":").map(Number);
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     return date;
@@ -40,108 +42,119 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift, clas
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
-  // Live current time — the big display
-  const liveTime = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
+  const formatDisplayTime = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.split(":").map(Number);
+    const period = h >= 12 ? "PM" : "AM";
+    const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${displayH}:${String(m).padStart(2, "0")} ${period}`;
+  };
 
-  const liveDate = now.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // ============ DETERMINE MODE ============
+  let mode = "idle";
+  let display = "--:--:--";
+  let workedSoFar = "";
 
-  // Derive status info
-  let mode = 'idle';
-  let statusText = '';
   if (!firstCheckIn) {
-    mode = 'idle';
+    // Not checked in
+    mode = "idle";
+    display = "--:--:--";
   } else if (lastCheckOut) {
-    mode = 'completed';
-    statusText = formatDuration(new Date(lastCheckOut) - new Date(firstCheckIn));
+    // Already checked out — show total worked hours
+    mode = "completed";
+    const totalMs = new Date(lastCheckOut) - new Date(firstCheckIn);
+    display = formatDuration(totalMs);
   } else {
+    // Active session
+    const checkInTime = new Date(firstCheckIn);
     const officeEnd = parseTimeToday(effectiveEndTime);
-    if (!officeEnd) {
-      mode = 'countdown';
-      statusText = formatDuration(now - new Date(firstCheckIn));
-    } else if (now < officeEnd) {
-      mode = 'countdown';
-      statusText = formatDuration(officeEnd - now);
+    const totalElapsed = now - checkInTime;
+
+    if (!officeEnd || now < officeEnd) {
+      // Still within office hours — count UP normally (blue)
+      mode = "working";
+      display = formatDuration(totalElapsed);
     } else {
-      mode = 'overtime';
-      statusText = formatDuration(now - officeEnd);
+      // Past office end → OVERTIME mode (orange/red)
+      mode = "overtime";
+      const overtimeMs = now - officeEnd;
+      display = formatDuration(overtimeMs);
+      workedSoFar = formatDuration(totalElapsed);
     }
   }
 
+  // ============ RENDER ============
   return (
     <div className={`text-center ${className}`}>
-      {/* Live wall clock — main display */}
-      <div className="text-4xl sm:text-5xl font-bold font-mono tracking-tight text-[#f4f7ea] tabular-nums">
-        {liveTime}
-      </div>
-      <p className="text-xs text-[#8a9472] mt-1">{liveDate}</p>
-
-      {/* Status line (smart timer info) */}
-      <div className="flex items-center justify-center gap-2 mt-4">
-        {mode === 'idle' && (
-          <p className="text-[#8a9472] text-sm">Not checked in</p>
+      {/* Status Label */}
+      <div className="flex items-center justify-center gap-2 mb-3">
+        {mode === "idle" && (
+          <p className="text-gray-400 text-sm">Not checked in</p>
         )}
-        {mode === 'countdown' && (
+        {mode === "working" && (
           <>
             <Clock className="w-4 h-4 text-indigo-500" />
             <p className="text-indigo-500 text-sm font-medium">
-              Office time remaining: <span className="font-mono">{statusText}</span>
+              Working{shiftLabel ? ` (${shiftLabel})` : ""}
             </p>
           </>
         )}
-        {mode === 'overtime' && (
+        {mode === "overtime" && (
           <>
             <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
-            <p className="text-orange-500 text-sm font-bold">
-              OVERTIME <span className="font-mono">{statusText}</span>
+            <p className="text-orange-500 text-sm font-bold tracking-wide">
+              OVERTIME
             </p>
             <Flame className="w-4 h-4 text-orange-500 animate-pulse" />
           </>
         )}
-        {mode === 'completed' && (
+        {mode === "completed" && (
           <>
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             <p className="text-green-500 text-sm font-medium">
-              Worked today: <span className="font-mono">{statusText}</span>
+              Total Hours Today
             </p>
           </>
         )}
       </div>
 
-      {/* Helper text */}
-      {mode === 'countdown' && effectiveEndTime && (
-        <p className="text-xs text-[#8a9472] mt-1">
-          Until {formatDisplayTime(effectiveEndTime)}
-          {shiftLabel && <span className="ml-1">· {shiftLabel}</span>}
+      {/* Main Big Display */}
+      <div
+        className={`text-5xl sm:text-6xl font-bold font-mono tracking-tight tabular-nums transition-colors ${
+          mode === "overtime"
+            ? "text-orange-500"
+            : mode === "completed"
+              ? "text-green-600"
+              : mode === "idle"
+                ? "text-gray-400"
+                : "text-gray-900"
+        }`}
+      >
+        {display}
+      </div>
+
+      {/* Helper text below */}
+      {mode === "working" && effectiveEndTime && (
+        <p className="text-xs text-gray-400 mt-3">
+          Office ends at {formatDisplayTime(effectiveEndTime)}
         </p>
       )}
-      {mode === 'overtime' && effectiveEndTime && (
-        <p className="text-xs text-orange-400 mt-1">
-          Past {formatDisplayTime(effectiveEndTime)}
-          {shiftLabel && <span className="ml-1">· {shiftLabel}</span>}
+
+      {mode === "overtime" && workedSoFar && (
+        <p className="text-xs text-gray-500 mt-3">
+          Total worked today:{" "}
+          <span className="font-mono font-semibold">{workedSoFar}</span>
+        </p>
+      )}
+
+      {mode === "idle" && (
+        <p className="text-xs text-gray-400 mt-3">
+          Click "Check In" to start your day
         </p>
       )}
     </div>
   );
-}
-
-// "18:00" → "6:00 PM"
-function formatDisplayTime(timeStr) {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
 }

@@ -11,15 +11,23 @@ import api from "@/api/apiClient";
 import { getSocket, connectSocket } from "@/api/socketClient";
 import AutoCheckoutWarning from "@/components/AutoCheckoutWarning";
 
+// ===========================================================================
+// TAB-OPEN HEARTBEAT TRACKER
+// ---------------------------------------------------------------------------
+// We no longer watch mouse/keyboard activity — that incorrectly logged users
+// out when they were working in another app (Photoshop, VS Code, etc.) with
+// the AttendEase tab in the background.
+//
+// New rule: as long as the tab exists in the browser, send a heartbeat every
+// 30s. setInterval keeps firing in background tabs (browser-throttled, but
+// still enough to satisfy a 2-hour idle threshold). When the tab is closed,
+// the browser is closed, the laptop is closed, or the OS shuts down, the
+// heartbeats stop arriving and the backend's auto-checkout cron will close
+// the session after the configured idle window.
+// ===========================================================================
+
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const STATUS_REFRESH_MS = 60_000;
-const ACTIVITY_EVENTS = [
-  "mousemove",
-  "keydown",
-  "click",
-  "scroll",
-  "touchstart",
-];
 
 const ActivityTrackerContext = createContext({ hasActiveSession: false });
 
@@ -30,8 +38,6 @@ export function ActivityTrackerProvider({ children }) {
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [warning, setWarning] = useState(null); // { minutesLeft, checkoutAt }
 
-  const lastSentRef = useRef(0);
-  const dirtyRef = useRef(false);
   const intervalRef = useRef(null);
   const statusIntervalRef = useRef(null);
 
@@ -46,51 +52,17 @@ export function ActivityTrackerProvider({ children }) {
   }, [isAuthenticated]);
 
   const sendHeartbeat = useCallback(async () => {
-    if (!isAuthenticated || document.hidden) return;
-    if (!dirtyRef.current) return;
-    if (Date.now() - lastSentRef.current < HEARTBEAT_INTERVAL_MS) return;
-
-    dirtyRef.current = false;
-    lastSentRef.current = Date.now();
-
+    if (!isAuthenticated) return;
     try {
       await api.post("/activity/heartbeat", { timestamp: Date.now() });
       // If a warning was showing, dismiss it — we're alive again
-      setWarning(null);
+      setWarning((w) => (w ? null : w));
     } catch {
-      // ignore network blips
+      // ignore network blips — next tick will try again
     }
   }, [isAuthenticated]);
 
-  // Mark activity on user input
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const onActivity = () => {
-      dirtyRef.current = true;
-    };
-
-    ACTIVITY_EVENTS.forEach((ev) =>
-      window.addEventListener(ev, onActivity, { passive: true }),
-    );
-
-    const onVisibilityChange = () => {
-      if (!document.hidden) dirtyRef.current = true;
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    // Mark dirty initially so the first tick fires a heartbeat
-    dirtyRef.current = true;
-
-    return () => {
-      ACTIVITY_EVENTS.forEach((ev) =>
-        window.removeEventListener(ev, onActivity),
-      );
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [isAuthenticated]);
-
-  // Heartbeat + status polling — only run when there's an active session
+  // Status polling (whether a session is currently active)
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -102,21 +74,69 @@ export function ActivityTrackerProvider({ children }) {
     };
   }, [isAuthenticated, refreshStatus]);
 
+  // Heartbeat loop — only while there's an active check-in session
   useEffect(() => {
     if (!isAuthenticated || !hasActiveSession) {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
       return;
     }
 
+    // Fire one immediately so the backend sees us right after check-in
     sendHeartbeat();
     intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = null;
     };
   }, [isAuthenticated, hasActiveSession, sendHeartbeat]);
 
-  // Socket: listen for warning + auto-checkout-done from backend
+  // When the tab becomes visible again, fire a heartbeat right away.
+  // Background tabs still tick, but a focus event guarantees a fresh ping.
+  useEffect(() => {
+    if (!isAuthenticated || !hasActiveSession) return;
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) sendHeartbeat();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [isAuthenticated, hasActiveSession, sendHeartbeat]);
+
+  // Best-effort final heartbeat right before the tab actually closes.
+  // sendBeacon survives page unload where fetch/XHR usually do not.
+  useEffect(() => {
+    if (!isAuthenticated || !hasActiveSession) return;
+
+    const onUnload = () => {
+      try {
+        const token = localStorage.getItem("workflow_token");
+        const apiBase =
+          import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+        const url = `${apiBase}/activity/heartbeat`;
+
+        const payload = new Blob(
+          [JSON.stringify({ timestamp: Date.now(), token })],
+          { type: "application/json" },
+        );
+        navigator.sendBeacon?.(url, payload);
+      } catch {
+        // ignore — best-effort
+      }
+    };
+
+    window.addEventListener("pagehide", onUnload);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      window.removeEventListener("pagehide", onUnload);
+      window.removeEventListener("beforeunload", onUnload);
+    };
+  }, [isAuthenticated, hasActiveSession]);
+
+  // Socket: warning + auto-checkout-done from backend
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -132,10 +152,12 @@ export function ActivityTrackerProvider({ children }) {
 
     socket.on("auto_checkout_warning", onWarning);
     socket.on("auto_checkout_done", onDone);
+    socket.on("auto_checkout", onDone);
 
     return () => {
       socket.off("auto_checkout_warning", onWarning);
       socket.off("auto_checkout_done", onDone);
+      socket.off("auto_checkout", onDone);
     };
   }, [isAuthenticated, refreshStatus, user?.email]);
 
@@ -147,7 +169,6 @@ export function ActivityTrackerProvider({ children }) {
           minutesLeft={warning.minutesLeft}
           checkoutAt={warning.checkoutAt}
           onStayActive={() => {
-            dirtyRef.current = true;
             sendHeartbeat();
             setWarning(null);
           }}

@@ -16,10 +16,8 @@ export const initCronJobs = () => {
     runMessageReminderCheck();
   });
 
-  // Idle auto-checkout: every 5 minutes
-  cron.schedule('*/5 * * * *', () => {
-    runIdleAutoCheckout();
-  });
+  // NOTE: idle auto-checkout is now scheduled by src/cron/autoCheckout.js
+  // (started directly from server.js so it runs in dev too, with test-mode support).
 
   // Midnight auto-checkout (catch-all + reset warning flags): 11:59 PM
   cron.schedule('59 23 * * *', () => {
@@ -36,7 +34,6 @@ export const initCronJobs = () => {
   console.log('✅ Cron jobs initialized');
   console.log('   - Attendance reminder: Mon-Fri 10:30 AM');
   console.log('   - Message reminders: every 5 minutes');
-  console.log('   - Idle auto-checkout: every 5 minutes');
   console.log('   - Midnight auto-checkout: daily 11:59 PM');
   console.log('   - Ranking and awards: daily 12:00 AM');
 };

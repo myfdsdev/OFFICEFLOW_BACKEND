@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Upload, Save, Image as ImageIcon, Type } from 'lucide-react';
+import { Upload, Save, Image as ImageIcon, Type, FlaskConical, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function AppSettingsForm() {
@@ -18,6 +18,8 @@ export default function AppSettingsForm() {
     html_title: '',
     favicon: '',
     primary_color: '#6366F1',
+    test_mode: false,
+    test_idle_seconds: 180,
   });
 
   const [originalData, setOriginalData] = useState({});
@@ -32,6 +34,8 @@ export default function AppSettingsForm() {
       html_title: settings?.html_title || 'AttendEase',
       favicon: settings?.favicon || '',
       primary_color: settings?.primary_color || '#6366F1',
+      test_mode: !!settings?.test_mode,
+      test_idle_seconds: settings?.test_idle_seconds ?? 180,
     };
 
     setFormData(data);
@@ -262,6 +266,72 @@ export default function AppSettingsForm() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-amber-400/20 bg-[#0a0604]">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FlaskConical className="w-5 h-5 text-amber-400" />
+            Auto-Checkout Test Mode
+          </CardTitle>
+          <CardDescription>
+            For development only — shrinks the idle threshold from hours to seconds
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!formData.test_mode}
+              onChange={(e) =>
+                setFormData({ ...formData, test_mode: e.target.checked })
+              }
+              className="mt-1 w-4 h-4 accent-amber-400"
+            />
+            <div className="flex-1">
+              <div className="font-medium text-amber-100">
+                Enable Test Mode
+              </div>
+              <div className="text-xs text-amber-100/60">
+                Cron runs every 30s and uses <code>test_idle_seconds</code> instead of <code>auto_checkout_hours</code>
+              </div>
+            </div>
+          </label>
+
+          {formData.test_mode && (
+            <>
+              <div className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-3 text-amber-200 text-sm">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  ⚠️ Test mode — much shorter idle threshold. Real users will be
+                  auto-checked-out within seconds. Disable before going to production.
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Idle Threshold (seconds)</Label>
+                <Input
+                  type="number"
+                  min={30}
+                  max={3600}
+                  value={formData.test_idle_seconds}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      test_idle_seconds: Number(e.target.value) || 180,
+                    })
+                  }
+                  className="border border-amber-400/20 max-w-[200px]"
+                />
+                <p className="text-xs text-amber-100/50">
+                  Default 180s (3 min). Auto-checkout fires once a user's tab has
+                  been closed this long.
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -40,6 +40,7 @@ import analyticsRoutes from "./src/routes/analytics.Routes.js";
 // Config & middleware imports
 import connectDB from "./src/config/db.js";
 import { initCronJobs } from "./src/jobs/index.js";
+import { startAutoCheckoutCron } from "./src/cron/autoCheckout.js";
 import "./src/config/cloudinary.js";
 import "./src/config/email.js";
 import { initSocket } from "./src/sockets/index.js";
@@ -181,6 +182,9 @@ httpServer.listen(PORT, () => {
   console.log(`💚 Health:   http://localhost:${PORT}/api/health`);
   console.log(`🔌 Socket:   ws://localhost:${PORT}`);
   console.log("=".repeat(50));
+
+  // Tab-heartbeat-based auto-checkout (runs in all environments so dev test mode works)
+  startAutoCheckoutCron();
 });
 
 process.on("unhandledRejection", (err) => {

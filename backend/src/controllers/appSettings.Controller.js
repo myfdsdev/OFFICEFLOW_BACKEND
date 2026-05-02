@@ -30,6 +30,8 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
     'auto_checkout_enabled',
     'auto_checkout_hours',
     'auto_checkout_warning_minutes',
+    'test_mode',
+    'test_idle_seconds',
   ];
 
   allowedFields.forEach((field) => {

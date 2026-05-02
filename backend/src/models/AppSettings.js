@@ -50,6 +50,17 @@ const appSettingsSchema = new mongoose.Schema({
     min: 1,
     max: 120,
   },
+  // ===== Test Mode (dev only — shrinks idle threshold to seconds) =====
+  test_mode: {
+    type: Boolean,
+    default: false,
+  },
+  test_idle_seconds: {
+    type: Number,
+    default: 180, // 3 minutes
+    min: 30,
+    max: 3600,
+  },
   // Tracking
   updated_by: {
     type: String,

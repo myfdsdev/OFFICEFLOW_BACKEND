@@ -68,46 +68,6 @@ const THEME = {
   danger: "#ff6b6b",
 };
 
-function useRealTimeStats(firstCheckIn, lastCheckOut) {
-  const [elapsed, setElapsed] = useState('00:00:00');
-  const [liveHours, setLiveHours] = useState('0h 0m');
-
-  const formatTime = (s) =>
-    `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(
-      Math.floor((s % 3600) / 60)
-    ).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-
-  const formatHours = (s) =>
-    `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-
-  useEffect(() => {
-    if (!firstCheckIn || lastCheckOut) {
-      if (lastCheckOut && firstCheckIn) {
-        const diff = differenceInSeconds(
-          new Date(lastCheckOut),
-          new Date(firstCheckIn)
-        );
-        setElapsed(formatTime(diff));
-        setLiveHours(formatHours(diff));
-      } else {
-        setElapsed('00:00:00');
-        setLiveHours('0h 0m');
-      }
-      return;
-    }
-
-    const interval = setInterval(() => {
-      const diff = differenceInSeconds(new Date(), new Date(firstCheckIn));
-      setElapsed(formatTime(diff));
-      setLiveHours(formatHours(diff));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [firstCheckIn, lastCheckOut]);
-
-  return { elapsed, liveHours };
-}
-
 function formatDateTime(value) {
   if (!value) return '--';
   try {
@@ -336,11 +296,6 @@ export default function Dashboard() {
 
   const isCurrentlyActive =
     !!todayAttendance?.first_check_in && !todayAttendance?.last_check_out;
-
-  const { elapsed, liveHours } = useRealTimeStats(
-    todayAttendance?.first_check_in,
-    todayAttendance?.last_check_out
-  );
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
@@ -660,15 +615,6 @@ export default function Dashboard() {
                 />
               )}
             </AnimatePresence>
-
-            <div className="text-center">
-              <p className="text-[11px] uppercase tracking-[0.18em] mb-2" style={{ color: THEME.muted2 }}>
-                Session Timer
-              </p>
-              <p className="text-3xl md:text-4xl font-semibold tracking-[-0.03em]" style={{ color: THEME.text }}>
-                {elapsed}
-              </p>
-            </div>
           </div>
 
           {/* Right */}
@@ -676,16 +622,16 @@ export default function Dashboard() {
             <div className="space-y-6">
               <div>
                 <p className="text-sm mb-3" style={{ color: THEME.muted }}>
-                  Today’s Hours
+                  Today's Hours
                 </p>
-                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                  <h2
-                    className="text-5xl md:text-6xl font-semibold leading-none tracking-[-0.05em]"
-                    style={{ color: THEME.text }}
-                  >
-                    {liveHours}
-                  </h2>
 
+                <SmartTimer
+                  firstCheckIn={todayAttendance?.first_check_in}
+                  lastCheckOut={todayAttendance?.last_check_out}
+                  userShift={user?.shift_id}
+                />
+
+                <div className="mt-4">
                   <div
                     className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium border w-fit"
                     style={{
@@ -717,12 +663,6 @@ export default function Dashboard() {
                   icon={LogOut}
                 />
               </div>
-
-              <SmartTimer
-                firstCheckIn={todayAttendance?.first_check_in}
-                lastCheckOut={todayAttendance?.last_check_out}
-                userShift={user?.shift_id}
-              />
             </div>
           </SectionCard>
         </div>

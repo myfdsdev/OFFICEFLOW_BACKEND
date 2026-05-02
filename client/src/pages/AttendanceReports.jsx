@@ -31,12 +31,20 @@ export default function AttendanceReports() {
 
   const { data: attendance = [] } = useQuery({
     queryKey: ['monthlyAttendance', selectedMonth],
-    queryFn: () => base44.entities.Attendance.filter({
-      date: { 
-        $gte: `${selectedMonth}-01`, 
-        $lte: `${selectedMonth}-31` 
-      }
-    }),
+    queryFn: () => {
+      const monthDate = new Date(`${selectedMonth}-01`);
+      return base44.entities.Attendance.filter({
+        date: {
+          $gte: format(startOfMonth(monthDate), 'yyyy-MM-dd'),
+          $lte: format(endOfMonth(monthDate), 'yyyy-MM-dd'),
+        },
+      });
+    },
+  });
+
+  const { data: leaveRequests = [] } = useQuery({
+    queryKey: ['monthlyLeaveRequests', selectedMonth],
+    queryFn: () => base44.entities.LeaveRequest.list('-created_date', 500),
   });
 
   const generateMonthOptions = () => {
@@ -56,11 +64,16 @@ export default function AttendanceReports() {
     const presentCount = employeeAttendance.filter(a => a.status === 'present').length;
     const lateCount = employeeAttendance.filter(a => a.status === 'late').length;
     const halfDayCount = employeeAttendance.filter(a => a.status === 'half_day').length;
-    const leaveCount = employeeAttendance.filter(a => a.status === 'on_leave').length;
+    const attendanceLeaveCount = employeeAttendance.filter(a => a.status === 'on_leave').length;
+    const leaveCount = Math.max(
+      attendanceLeaveCount,
+      countApprovedLeaveDays(employeeEmail, selectedMonth, leaveRequests)
+    );
     const totalDays = employeeAttendance.length;
     const totalHours = employeeAttendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
-    const avgHours = totalDays > 0 ? (totalHours / totalDays).toFixed(1) : '0';
-    const attendancePercentage = totalDays > 0 ? ((presentCount / totalDays) * 100).toFixed(1) : '0';
+    const workedDays = presentCount + lateCount + halfDayCount;
+    const avgHours = workedDays > 0 ? (totalHours / workedDays).toFixed(1) : '0';
+    const attendancePercentage = totalDays > 0 ? ((workedDays / totalDays) * 100).toFixed(1) : '0';
 
     return {
       presentCount,
@@ -75,31 +88,31 @@ export default function AttendanceReports() {
   };
 
   const handleExportPDF = async () => {
-    const { data } = await base44.functions.invoke('exportAttendanceReport', {
+    const data = await base44.functions.invoke('exportAttendanceReport', {
       month: selectedMonth,
       format: 'pdf',
     });
-    const blob = new Blob([data], { type: 'application/pdf' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `attendance-report-${selectedMonth}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
+    downloadBlob(data, `attendance-report-${selectedMonth}.pdf`, 'application/pdf');
   };
 
   const handleExportExcel = async () => {
-    const { data } = await base44.functions.invoke('exportAttendanceReport', {
+    const data = await base44.functions.invoke('exportAttendanceReport', {
       month: selectedMonth,
       format: 'excel',
     });
-    const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    downloadBlob(
+      data,
+      `attendance-report-${selectedMonth}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+  };
+
+  const downloadBlob = (data, filename, mimeType) => {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: mimeType });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance-report-${selectedMonth}.xlsx`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -243,4 +256,22 @@ export default function AttendanceReports() {
       </div>
     </div>
   );
+}
+
+function countApprovedLeaveDays(employeeEmail, selectedMonth, leaveRequests) {
+  const monthStart = startOfMonth(new Date(`${selectedMonth}-01`));
+  const monthEnd = endOfMonth(monthStart);
+
+  return leaveRequests
+    .filter((leave) => leave.employee_email === employeeEmail && leave.status === 'approved')
+    .reduce((sum, leave) => {
+      const leaveStart = new Date(leave.start_date);
+      const leaveEnd = new Date(leave.end_date);
+      if (leaveEnd < monthStart || leaveStart > monthEnd) return sum;
+
+      const start = leaveStart > monthStart ? leaveStart : monthStart;
+      const end = leaveEnd < monthEnd ? leaveEnd : monthEnd;
+      const days = Math.floor((end - start) / 86400000) + 1;
+      return sum + Math.max(0, days);
+    }, 0);
 }

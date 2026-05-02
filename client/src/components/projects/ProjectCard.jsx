@@ -26,10 +26,10 @@ export default function ProjectCard({
       "
     >
       {/* LEFT ACCENT GLOW */}
-      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-[#22c55e] to-[#16a34a]" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-[#22c55e] to-[#16a34a]" />
 
       {/* TOP GLOW */}
-      <div className="absolute top-0 left-0 w-full h-[120px] bg-gradient-to-b from-[#22c55e]/10 to-transparent opacity-40" />
+      <div className="pointer-events-none absolute top-0 left-0 w-full h-[120px] bg-gradient-to-b from-[#22c55e]/10 to-transparent opacity-40" />
 
       {/* HEADER */}
       <div className="flex items-start justify-between mb-4">
@@ -51,7 +51,10 @@ export default function ProjectCard({
 
         <div className="flex gap-2">
           <button
-            onClick={() => onOpen(project.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpen(project.id);
+            }}
             className="w-9 h-9 rounded-xl bg-[#111111] border border-lime-400/15 flex items-center justify-center hover:bg-[#111827]"
           >
             <ExternalLink className="w-4 h-4 text-lime-100/55" />
@@ -59,7 +62,10 @@ export default function ProjectCard({
 
           {isAdmin && (
             <button
-              onClick={() => onDelete(project.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(project.id);
+              }}
               className="w-9 h-9 rounded-xl bg-[#111111] border border-lime-400/15 flex items-center justify-center hover:bg-rose-500/20"
             >
               <Trash2 className="w-4 h-4 text-rose-400" />
@@ -107,7 +113,10 @@ export default function ProjectCard({
       <div className="flex items-center justify-between text-xs text-lime-100/45">
         <span>Created by {project.created_by_name || "Unknown"}</span>
         <button
-          onClick={() => onOpen(project.id)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(project.id);
+          }}
           className="text-[#22c55e] hover:underline"
         >
           Open Project

@@ -268,26 +268,11 @@ export default function ProjectsPage() {
 
   const deleteProjectMutation = useMutation({
     mutationFn: async (projectId) => {
-      const projectTasks = await base44.entities.Task.filter({
-        project_id: projectId,
-      });
-
-      await Promise.all(
-        projectTasks.map((task) => base44.entities.Task.delete(task.id))
-      );
-
-      const members = await base44.entities.ProjectMember.filter({
-        project_id: projectId,
-      });
-
-      await Promise.all(
-        members.map((member) => base44.entities.ProjectMember.delete(member.id))
-      );
-
       await base44.entities.Project.delete(projectId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["projectMemberships"] });
       queryClient.invalidateQueries({ queryKey: ["projectTasksOverview"] });
 
       setProjectToDelete(null);

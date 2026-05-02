@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Upload, Save, Image as ImageIcon, Type, FlaskConical, AlertTriangle } from 'lucide-react';
+import { Upload, Save, Image as ImageIcon, Type, Clock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function AppSettingsForm() {
@@ -18,8 +18,9 @@ export default function AppSettingsForm() {
     html_title: '',
     favicon: '',
     primary_color: '#6366F1',
-    test_mode: false,
-    test_idle_seconds: 180,
+    auto_checkout_enabled: true,
+    auto_checkout_hours: 2,
+    auto_checkout_warning_minutes: 20,
   });
 
   const [originalData, setOriginalData] = useState({});
@@ -34,8 +35,9 @@ export default function AppSettingsForm() {
       html_title: settings?.html_title || 'AttendEase',
       favicon: settings?.favicon || '',
       primary_color: settings?.primary_color || '#6366F1',
-      test_mode: !!settings?.test_mode,
-      test_idle_seconds: settings?.test_idle_seconds ?? 180,
+      auto_checkout_enabled: settings?.auto_checkout_enabled ?? true,
+      auto_checkout_hours: settings?.auto_checkout_hours ?? 2,
+      auto_checkout_warning_minutes: settings?.auto_checkout_warning_minutes ?? 20,
     };
 
     setFormData(data);
@@ -85,7 +87,9 @@ export default function AppSettingsForm() {
     setSaving(true);
 
     try {
-      await updateSettings(formData);
+      await updateSettings({
+        ...formData,
+      });
       setOriginalData(formData);
       toast.success('App settings saved successfully');
     } catch (error) {
@@ -157,6 +161,29 @@ export default function AppSettingsForm() {
         </CardHeader>
 
         <CardContent>
+          <div className="mb-5 rounded-2xl border border-lime-400/10 bg-black/60 p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-lime-100/45">
+              Brand Preview
+            </p>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-lime-400 shadow-[0_0_24px_rgba(163,211,18,0.22)]">
+                  {formData.app_logo ? (
+                    <img src={formData.app_logo} alt="Logo preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-7 w-7 text-black" />
+                  )}
+                </div>
+                <span className="text-2xl font-bold text-white">
+                  {formData.app_name || 'AttendEase'}
+                </span>
+              </div>
+              <p className="max-w-xs text-right text-xs text-lime-100/45">
+                Shows your uploaded logo, or a solid icon with app text when no logo is set.
+              </p>
+            </div>
+          </div>
+
           <div className="flex items-center gap-6">
             <Avatar className="w-20 h-20 rounded-xl border-2 border-lime-400/10">
               {formData.app_logo ? (
@@ -269,14 +296,14 @@ export default function AppSettingsForm() {
         </CardContent>
       </Card>
 
-      <Card className="border-amber-400/20 bg-[#0a0604]">
+      <Card className="border-lime-400/10 bg-[#020806]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FlaskConical className="w-5 h-5 text-amber-400" />
-            Auto-Checkout Test Mode
+            <Clock className="w-5 h-5 text-lime-400" />
+            Auto-Checkout Control
           </CardTitle>
           <CardDescription>
-            For development only — shrinks the idle threshold from hours to seconds
+            Control automatic checkout for inactive employees
           </CardDescription>
         </CardHeader>
 
@@ -284,55 +311,66 @@ export default function AppSettingsForm() {
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={!!formData.test_mode}
+              checked={!!formData.auto_checkout_enabled}
               onChange={(e) =>
-                setFormData({ ...formData, test_mode: e.target.checked })
+                setFormData({ ...formData, auto_checkout_enabled: e.target.checked })
               }
-              className="mt-1 w-4 h-4 accent-amber-400"
+              className="mt-1 w-4 h-4 accent-lime-400"
             />
             <div className="flex-1">
-              <div className="font-medium text-amber-100">
-                Enable Test Mode
+              <div className="font-medium text-lime-100">
+                Enable Auto-Checkout
               </div>
-              <div className="text-xs text-amber-100/60">
-                Cron runs every 30s and uses <code>test_idle_seconds</code> instead of <code>auto_checkout_hours</code>
+              <div className="text-xs text-lime-100/50">
+                When enabled, inactive users are checked out from their last detected activity.
               </div>
             </div>
           </label>
 
-          {formData.test_mode && (
-            <>
-              <div className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-400/5 p-3 text-amber-200 text-sm">
-                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>
-                  ⚠️ Test mode — much shorter idle threshold. Real users will be
-                  auto-checked-out within seconds. Disable before going to production.
-                </span>
-              </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Inactive Hours Before Checkout</Label>
+              <Input
+                type="number"
+                min={0.25}
+                max={24}
+                step={0.25}
+                value={formData.auto_checkout_hours}
+                disabled={!formData.auto_checkout_enabled}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    auto_checkout_hours: Number(e.target.value) || 2,
+                  })
+                }
+                className="border border-lime-400/10"
+              />
+              <p className="text-xs text-lime-100/45">
+                Example: 2 means checkout after 2 inactive hours.
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Idle Threshold (seconds)</Label>
-                <Input
-                  type="number"
-                  min={30}
-                  max={3600}
-                  value={formData.test_idle_seconds}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      test_idle_seconds: Number(e.target.value) || 180,
-                    })
-                  }
-                  className="border border-amber-400/20 max-w-[200px]"
-                />
-                <p className="text-xs text-amber-100/50">
-                  Default 180s (3 min). Auto-checkout fires once a user's tab has
-                  been closed this long.
-                </p>
-              </div>
-            </>
-          )}
-        </CardContent>
+            <div className="space-y-2">
+              <Label>Warning Before Checkout (minutes)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={120}
+                value={formData.auto_checkout_warning_minutes}
+                disabled={!formData.auto_checkout_enabled}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    auto_checkout_warning_minutes: Number(e.target.value) || 20,
+                  })
+                }
+                className="border border-lime-400/10"
+              />
+              <p className="text-xs text-lime-100/45">
+                Employees get a warning before the session is closed.
+              </p>
+            </div>
+          </div>`r`n        </CardContent>
       </Card>
 
       <div className="flex justify-end gap-3 pt-2">
@@ -360,3 +398,5 @@ export default function AppSettingsForm() {
     </div>
   );
 }
+
+

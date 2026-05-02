@@ -150,13 +150,16 @@ export const exportAttendanceReport = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'month (YYYY-MM) required' });
   }
 
+  const monthStart = `${month}-01`;
+  const monthEnd = `${month}-31`;
+
   // Get employees
   const employees = await User.find({ role: 'user' }).sort('full_name');
 
   // Get attendance in date range
   const attendance = await Attendance.find({
-    date: { $gte: `${month}-01`, $lte: `${month}-31` },
-  });
+    date: { $gte: monthStart, $lte: monthEnd },
+  }).sort('date employee_name');
 
   // Build rows
   const rows = employees.map((emp) => {
@@ -171,13 +174,43 @@ export const exportAttendanceReport = asyncHandler(async (req, res) => {
       on_leave: records.filter((a) => a.status === 'on_leave').length,
       absent: records.filter((a) => a.status === 'absent').length,
       total: records.length,
-      total_hours: records.reduce((sum, a) => sum + (a.work_hours || 0), 0).toFixed(2),
+      total_hours: Number(records.reduce((sum, a) => sum + (a.work_hours || 0), 0).toFixed(2)),
+      avg_hours: records.length
+        ? Number((records.reduce((sum, a) => sum + (a.work_hours || 0), 0) / records.length).toFixed(2))
+        : 0,
     };
   });
 
+  const summary = rows.reduce(
+    (sum, row) => ({
+      present: sum.present + row.present,
+      late: sum.late + row.late,
+      half_day: sum.half_day + row.half_day,
+      on_leave: sum.on_leave + row.on_leave,
+      absent: sum.absent + row.absent,
+      total: sum.total + row.total,
+      total_hours: Number((sum.total_hours + row.total_hours).toFixed(2)),
+    }),
+    { present: 0, late: 0, half_day: 0, on_leave: 0, absent: 0, total: 0, total_hours: 0 },
+  );
+
+  const detailRows = attendance.map((record) => ({
+    employee: record.employee_name,
+    email: record.employee_email,
+    date: record.date,
+    status: record.status,
+    check_in: record.first_check_in
+      ? new Date(record.first_check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '-',
+    check_out: record.last_check_out
+      ? new Date(record.last_check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '-',
+    hours: Number(record.work_hours || 0),
+  }));
+
   // ========== PDF ==========
   if (format === 'pdf') {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
 
     doc.setFontSize(18);
     doc.text(`Attendance Report - ${month}`, 14, 20);
@@ -187,19 +220,37 @@ export const exportAttendanceReport = asyncHandler(async (req, res) => {
 
     autoTable(doc, {
       startY: 35,
-      head: [['Employee', 'Dept', 'Present', 'Late', 'Half', 'Leave', 'Total', 'Hours']],
+      head: [['Employee', 'Email', 'Dept', 'Present', 'Late', 'Half', 'Leave', 'Absent', 'Total', 'Hours', 'Avg']],
       body: rows.map((r) => [
         r.name,
+        r.email,
         r.department,
         r.present,
         r.late,
         r.half_day,
         r.on_leave,
+        r.absent,
         r.total,
         r.total_hours,
+        r.avg_hours,
       ]),
+      foot: [[
+        'Total',
+        '',
+        '',
+        summary.present,
+        summary.late,
+        summary.half_day,
+        summary.on_leave,
+        summary.absent,
+        summary.total,
+        summary.total_hours,
+        '',
+      ]],
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
+      headStyles: { fillColor: [22, 163, 74], textColor: 255 },
+      footStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
     });
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
@@ -215,7 +266,10 @@ export const exportAttendanceReport = asyncHandler(async (req, res) => {
   // ========== EXCEL ==========
   if (format === 'excel') {
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(`Attendance ${month}`);
+    workbook.creator = 'OfficeFlow';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Summary');
 
     sheet.columns = [
       { header: 'Employee', key: 'name', width: 25 },
@@ -228,17 +282,59 @@ export const exportAttendanceReport = asyncHandler(async (req, res) => {
       { header: 'Absent', key: 'absent', width: 10 },
       { header: 'Total Days', key: 'total', width: 12 },
       { header: 'Total Hours', key: 'total_hours', width: 12 },
+      { header: 'Avg Hours', key: 'avg_hours', width: 12 },
     ];
 
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FF3B82F6' },
+      fgColor: { argb: 'FF16A34A' },
     };
     sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
 
     rows.forEach((row) => sheet.addRow(row));
+    sheet.addRow({});
+    sheet.addRow({
+      name: 'TOTAL',
+      present: summary.present,
+      late: summary.late,
+      half_day: summary.half_day,
+      on_leave: summary.on_leave,
+      absent: summary.absent,
+      total: summary.total,
+      total_hours: summary.total_hours,
+    }).font = { bold: true };
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    sheet.eachRow((row) => {
+      row.eachCell((cell) => {
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        };
+      });
+    });
+
+    const details = workbook.addWorksheet('Daily Details');
+    details.columns = [
+      { header: 'Employee', key: 'employee', width: 25 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Date', key: 'date', width: 14 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Check In', key: 'check_in', width: 12 },
+      { header: 'Check Out', key: 'check_out', width: 12 },
+      { header: 'Hours', key: 'hours', width: 10 },
+    ];
+    details.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    details.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF16A34A' },
+    };
+    detailRows.forEach((row) => details.addRow(row));
+    details.views = [{ state: 'frozen', ySplit: 1 }];
 
     const buffer = await workbook.xlsx.writeBuffer();
 

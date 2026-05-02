@@ -6,8 +6,8 @@ import { format } from "date-fns";
 import { motion } from "framer-motion";
 
 export default function AttendanceCard({ todayAttendance, onClockIn, onClockOut, isLoading }) {
-  const isClockIn = todayAttendance?.clock_in;
-  const isClockOut = todayAttendance?.clock_out;
+  const isClockIn = todayAttendance?.first_check_in;
+  const isClockOut = todayAttendance?.last_check_out;
 
   return (
     <motion.div
@@ -29,13 +29,13 @@ export default function AttendanceCard({ todayAttendance, onClockIn, onClockOut,
               {isClockIn && (
                 <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
                   <LogIn className="w-4 h-4" />
-                  <span>In: {todayAttendance.clock_in}</span>
+                  <span>In: {format(new Date(todayAttendance.first_check_in), "HH:mm")}</span>
                 </div>
               )}
               {isClockOut && (
                 <div className="flex items-center gap-2 bg-white/10 rounded-full px-4 py-2">
                   <LogOut className="w-4 h-4" />
-                  <span>Out: {todayAttendance.clock_out}</span>
+                  <span>Out: {format(new Date(todayAttendance.last_check_out), "HH:mm")}</span>
                 </div>
               )}
               {todayAttendance?.work_hours && (

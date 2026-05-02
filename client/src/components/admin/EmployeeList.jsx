@@ -11,6 +11,7 @@ import OnlineStatusIndicator from './OnlineStatusIndicator';
 
 export default function EmployeeList({ employees, todayAttendance = [] }) {
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     // Initial state from props
@@ -28,6 +29,11 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
     return unsubscribe;
   }, [employees]);
 
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getInitials = (name) => {
     if (!name) return "?";
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
@@ -42,6 +48,16 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
     const attendance = todayAttendance.find(a => a.employee_email === email);
     if (!attendance) return null;
     return attendance.status;
+  };
+
+  const getTodayWorkTime = (email) => {
+    const attendance = todayAttendance.find(a => a.employee_email === email);
+    if (!attendance?.first_check_in) return 'Not started';
+
+    const start = new Date(attendance.first_check_in);
+    const end = attendance.last_check_out ? new Date(attendance.last_check_out) : now;
+    const totalMinutes = Math.max(0, Math.floor((end - start) / 60000));
+    return `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
   };
 
   const statusStyles = {
@@ -68,6 +84,7 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
             employees.map((employee, index) => {
               const status = getTodayStatus(employee.email);
               const isOnline = getUserOnlineStatus(employee.email);
+              const todayWorkTime = getTodayWorkTime(employee.email);
               
               return (
                 <motion.div
@@ -104,6 +121,9 @@ export default function EmployeeList({ employees, todayAttendance = [] }) {
                         {employee.department && (
                           <p className="text-xs text-lime-100/35">{employee.department}</p>
                         )}
+                        <p className="mt-1 text-xs text-lime-300/80">
+                          Today worked: {todayWorkTime}
+                        </p>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">

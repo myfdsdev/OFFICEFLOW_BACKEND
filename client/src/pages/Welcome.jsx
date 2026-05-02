@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,14 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/lib/AuthContext';
+import { useAppSettings } from '@/lib/AppSettingsContext';
 
 export default function Welcome() {
   const navigate = useNavigate();
   const loginInProgress = useRef(false);
+  const { settings } = useAppSettings();
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
+  const appName = settings?.app_name || 'AttendEase';
 
   const {
     user,
@@ -69,9 +73,28 @@ export default function Welcome() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      <div className="lg:w-3/5 bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 text-white flex items-center justify-center p-8 lg:p-12 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 opacity-20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-400 opacity-20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+      <div
+        className="lg:w-3/5 bg-black text-white flex items-center justify-center p-8 lg:p-12 relative overflow-hidden"
+        onMouseMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPointer({
+            x: ((event.clientX - rect.left) / rect.width - 0.5) * 24,
+            y: ((event.clientY - rect.top) / rect.height - 0.5) * 24,
+          });
+        }}
+        onMouseLeave={() => setPointer({ x: 0, y: 0 })}
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(163,211,18,0.16),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(34,197,94,0.10),transparent_28%),linear-gradient(135deg,#000000_0%,#040700_48%,#000000_100%)]" />
+        <motion.div
+          className="absolute left-12 top-14 h-32 w-32 rounded-full border border-lime-400/15"
+          animate={{ x: pointer.x, y: pointer.y }}
+          transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+        />
+        <motion.div
+          className="absolute bottom-16 right-16 h-44 w-44 rounded-full border border-lime-400/10"
+          animate={{ x: -pointer.x, y: -pointer.y }}
+          transition={{ type: 'spring', stiffness: 70, damping: 20 }}
+        />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -80,19 +103,23 @@ export default function Welcome() {
           className="relative z-10 max-w-xl"
         >
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <Building2 className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 bg-lime-400 rounded-xl flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(163,211,18,0.28)]">
+              {settings?.app_logo ? (
+                <img src={settings.app_logo} alt={appName} className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="w-7 h-7 text-black" />
+              )}
             </div>
-            <span className="text-2xl font-bold">AttendEase</span>
+            <span className="text-2xl font-bold">{appName}</span>
           </div>
 
           <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-6">
             Your team's workspace,
             <br />
-            <span className="text-blue-200">all in one place.</span>
+            <span className="text-lime-300">all in one place.</span>
           </h1>
 
-          <p className="text-lg text-blue-100 mb-10">
+          <p className="text-lg text-lime-100/60 mb-10">
             Track attendance, manage projects, chat in real-time, and stay connected with your team.
           </p>
 
@@ -105,7 +132,7 @@ export default function Welcome() {
         </motion.div>
       </div>
 
-      <div className="lg:w-2/5 bg-white flex items-center justify-center p-8 lg:p-12">
+      <div className="lg:w-2/5 bg-[#020806] flex items-center justify-center p-8 lg:p-12">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -113,15 +140,19 @@ export default function Welcome() {
           className="w-full max-w-sm"
         >
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-lime-400 rounded-xl flex items-center justify-center overflow-hidden">
+              {settings?.app_logo ? (
+                <img src={settings.app_logo} alt={appName} className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="w-6 h-6 text-black" />
+              )}
             </div>
-            <span className="text-xl font-bold text-gray-900">AttendEase</span>
+            <span className="text-xl font-bold text-white">{appName}</span>
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Get Started</h2>
-            <p className="text-gray-500">Sign in to access your workspace</p>
+            <h2 className="text-3xl font-bold text-white mb-2">Get Started</h2>
+            <p className="text-lime-100/50">Sign in to access your workspace</p>
           </div>
 
           <div className="space-y-4">
@@ -129,7 +160,7 @@ export default function Welcome() {
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
-                theme="outline"
+                theme="filled_black"
                 size="large"
                 width="320"
                 text="continue_with"
@@ -139,10 +170,10 @@ export default function Welcome() {
 
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
+                <div className="w-full border-t border-lime-400/15" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-3 text-gray-400 font-medium uppercase">
+                <span className="bg-[#020806] px-3 text-lime-100/35 font-medium uppercase">
                   Or
                 </span>
               </div>
@@ -152,26 +183,26 @@ export default function Welcome() {
               onClick={() => navigate(createPageUrl('Register'))}
               variant="outline"
               size="lg"
-              className="w-full h-12 border-2 hover:bg-gray-50 font-medium"
+              className="w-full h-12 border border-lime-400/20 bg-black text-lime-100 hover:bg-lime-400/10 hover:text-white font-medium"
             >
-              <Mail className="w-5 h-5 mr-3 text-gray-600" />
+              <Mail className="w-5 h-5 mr-3 text-lime-300" />
               Continue with Email
             </Button>
           </div>
 
-          <p className="text-center text-sm text-gray-500 mt-8">
+          <p className="text-center text-sm text-lime-100/50 mt-8">
             Already have an account?{' '}
             <Link
               to={createPageUrl('Login')}
-              className="text-indigo-600 hover:text-indigo-700 font-semibold"
+              className="text-lime-300 hover:text-lime-200 font-semibold"
             >
               Sign in
             </Link>
           </p>
 
-          <p className="text-center text-xs text-gray-400 mt-12">
+          <p className="text-center text-xs text-lime-100/35 mt-12">
             By continuing, you agree to our{' '}
-            <Link to={createPageUrl('PrivacyPolicy')} className="underline hover:text-gray-600">
+            <Link to={createPageUrl('PrivacyPolicy')} className="underline hover:text-lime-200">
               Privacy Policy
             </Link>
           </p>
@@ -183,9 +214,9 @@ export default function Welcome() {
 
 const Feature = ({ icon: Icon, text }) => (
   <div className="flex items-center gap-3">
-    <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
-      <Icon className="w-5 h-5 text-white" />
+    <div className="w-10 h-10 bg-lime-400/10 border border-lime-400/15 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+      <Icon className="w-5 h-5 text-lime-300" />
     </div>
-    <span className="text-blue-50">{text}</span>
+    <span className="text-lime-100/70">{text}</span>
   </div>
 );

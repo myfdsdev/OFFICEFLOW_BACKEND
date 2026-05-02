@@ -27,8 +27,8 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
   const handleEditClick = (record) => {
     setSelectedRecord(record);
     setEditData({
-      clock_in: record.clock_in || "",
-      clock_out: record.clock_out || "",
+      clock_in: formatTimeInput(record.first_check_in),
+      clock_out: formatTimeInput(record.last_check_out),
       status: record.status || "present",
       notes: record.notes || "",
     });
@@ -86,12 +86,12 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
                         </div>
                       </TableCell>
                       <TableCell>{format(parseISO(record.date), "MMM d, yyyy")}</TableCell>
-                      <TableCell>{record.clock_in || "-"}</TableCell>
-                      <TableCell>{record.clock_out || "-"}</TableCell>
+                      <TableCell>{formatDisplayTime(record.first_check_in)}</TableCell>
+                      <TableCell>{formatDisplayTime(record.last_check_out)}</TableCell>
                       <TableCell>
-                        {record.work_hours ? (
+                        {Number(record.work_hours) > 0 ? (
                           <span className="font-medium text-lime-300">
-                            {record.work_hours.toFixed(1)}h
+                            {Number(record.work_hours).toFixed(1)}h
                           </span>
                         ) : "-"}
                       </TableCell>
@@ -196,4 +196,22 @@ export default function AttendanceReportTable({ attendance, onEdit, isEditing })
       </Dialog>
     </>
   );
+}
+
+function formatTimeInput(value) {
+  if (!value) return "";
+  try {
+    return format(new Date(value), "HH:mm");
+  } catch {
+    return "";
+  }
+}
+
+function formatDisplayTime(value) {
+  if (!value) return "-";
+  try {
+    return format(new Date(value), "hh:mm a");
+  } catch {
+    return "-";
+  }
 }

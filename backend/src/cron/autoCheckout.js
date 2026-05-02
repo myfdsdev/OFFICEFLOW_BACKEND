@@ -6,10 +6,7 @@
 //
 // Idle time = now - user.last_activity (last heartbeat).
 // Threshold comes from AppSettings:
-//   - normal mode: auto_checkout_hours * 3600s (default 2h)
-//   - test_mode:   test_idle_seconds (default 180s)
-// In test mode the cron also fires every 30s instead of every 5min so you
-// don't have to wait long to verify the flow.
+//   - auto_checkout_hours * 3600s (default 2h)
 // ===========================================================================
 
 import cron from 'node-cron';
@@ -78,22 +75,14 @@ export const runAutoCheckout = async () => {
     const settings = await AppSettings.getSingleton();
     if (!settings.auto_checkout_enabled) return;
 
-    const isTest = !!settings.test_mode;
+    const isTest = false;
 
-    // Idle threshold (seconds) — test_mode shrinks hours → seconds for fast verification.
-    const thresholdSec = isTest
-      ? settings.test_idle_seconds
-      : settings.auto_checkout_hours * 3600;
+    const thresholdSec = settings.auto_checkout_hours * 3600;
 
-    // Warning threshold scales: in test mode we warn at 50% of the idle window
-    // (so a 3-min test fires a warning at 1.5 min); otherwise warn N minutes
-    // before auto-checkout per the configured warning window.
-    const warningThresholdSec = isTest
-      ? Math.max(30, Math.floor(thresholdSec / 2))
-      : Math.max(
-          60,
-          thresholdSec - settings.auto_checkout_warning_minutes * 60,
-        );
+    const warningThresholdSec = Math.max(
+      60,
+      thresholdSec - settings.auto_checkout_warning_minutes * 60,
+    );
 
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
@@ -108,7 +97,7 @@ export const runAutoCheckout = async () => {
 
     console.log(
       `🔍 [AutoCheckout] Checking ${activeAttendance.length} active session(s) ` +
-        `(threshold=${thresholdSec}s, mode=${isTest ? 'TEST' : 'NORMAL'})`,
+        `(threshold=${thresholdSec}s)`,
     );
 
     const io = await getSocketIO();
@@ -226,7 +215,7 @@ export const runAutoCheckout = async () => {
 };
 
 // ---------------------------------------------------------------------------
-// Daily reset of the warning flag — runs at midnight regardless of test mode.
+// Daily reset of the warning flag — runs at midnight daily.
 // ---------------------------------------------------------------------------
 export const resetWarningFlags = async () => {
   try {
@@ -243,64 +232,40 @@ export const resetWarningFlags = async () => {
 };
 
 // ---------------------------------------------------------------------------
-// Schedules. We watch AppSettings.test_mode and swap between fast/slow crons
-// without needing a server restart.
+// Schedules.
 // ---------------------------------------------------------------------------
 let normalTask = null;
-let testTask = null;
 let midnightTask = null;
-let modeWatcher = null;
-let currentMode = null; // 'normal' | 'test'
+let currentMode = null;
 
 const applyMode = (mode) => {
   if (mode === currentMode) return;
   currentMode = mode;
 
   if (normalTask) normalTask.stop();
-  if (testTask) testTask.stop();
-
-  if (mode === 'test') {
-    // Every 30 seconds
-    testTask = cron.schedule('*/30 * * * * *', runAutoCheckout);
-    console.log('🧪 [AutoCheckout] TEST MODE — running every 30 seconds');
-  } else {
-    // Every 5 minutes
-    normalTask = cron.schedule('*/5 * * * *', runAutoCheckout);
-    console.log('⏱️  [AutoCheckout] normal mode — running every 5 minutes');
-  }
+  normalTask = cron.schedule('*/5 * * * *', runAutoCheckout);
+  console.log('[AutoCheckout] normal mode running every 5 minutes');
 };
 
 export const startAutoCheckoutCron = () => {
-  // Pick initial mode from settings
   AppSettings.getSingleton()
-    .then((s) => applyMode(s.test_mode ? 'test' : 'normal'))
+    .then(() => applyMode('normal'))
     .catch((err) => {
       console.error('[AutoCheckout] could not read settings, defaulting to normal:', err.message);
       applyMode('normal');
     });
 
-  // Re-check the mode every minute so admins toggling test_mode in the UI
-  // get fast/slow scheduling without restarting the server.
-  modeWatcher = cron.schedule('* * * * *', async () => {
-    try {
-      const s = await AppSettings.getSingleton();
-      applyMode(s.test_mode ? 'test' : 'normal');
-    } catch {
-      // ignore
-    }
-  });
-
   // Daily warning-flag reset at midnight
   midnightTask = cron.schedule('0 0 * * *', resetWarningFlags);
 
-  console.log('✅ Auto-checkout cron started (every 5 min)');
+  console.log('Auto-checkout cron started (every 5 min)');
 };
 
 export const stopAutoCheckoutCron = () => {
   normalTask?.stop();
-  testTask?.stop();
-  modeWatcher?.stop();
   midnightTask?.stop();
 };
 
 export default startAutoCheckoutCron;
+
+

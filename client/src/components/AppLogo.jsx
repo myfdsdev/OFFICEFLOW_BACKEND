@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { useAppSettings } from '@/lib/AppSettingsContext';
 
 /**
@@ -19,7 +19,7 @@ export default function AppLogo({ size = 'md', iconOnly = false, className = '' 
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <div className={`${s.box} bg-lime-400 ${s.rounded} flex items-center justify-center overflow-hidden`}>
+      <div className={`${s.box} bg-lime-400 ${s.rounded} flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(163,211,18,0.22)]`}>
         {settings?.app_logo ? (
           <img
             src={settings.app_logo}
@@ -27,7 +27,7 @@ export default function AppLogo({ size = 'md', iconOnly = false, className = '' 
             className="w-full h-full object-cover"
           />
         ) : (
-          <Clock className={`${s.icon} text-white`} />
+          <Building2 className={`${s.icon} text-black`} />
         )}
       </div>
 

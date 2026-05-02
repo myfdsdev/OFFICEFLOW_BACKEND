@@ -183,7 +183,7 @@ httpServer.listen(PORT, () => {
   console.log(`🔌 Socket:   ws://localhost:${PORT}`);
   console.log("=".repeat(50));
 
-  // Tab-heartbeat-based auto-checkout (runs in all environments so dev test mode works)
+  // Tab-heartbeat-based auto-checkout
   startAutoCheckoutCron();
 });
 
@@ -191,3 +191,4 @@ process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err.message);
   httpServer.close(() => process.exit(1));
 });
+

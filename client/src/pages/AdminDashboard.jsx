@@ -157,23 +157,21 @@ export default function AdminDashboard() {
         throw new Error('Only admins can edit attendance');
       }
 
-      let workHours = null;
-
-      if (data.clock_in && data.clock_out) {
-        const clockInTime = data.clock_in.split(':');
-        const clockOutTime = data.clock_out.split(':');
-        const clockInMinutes = parseInt(clockInTime[0]) * 60 + parseInt(clockInTime[1]);
-        const clockOutMinutes = parseInt(clockOutTime[0]) * 60 + parseInt(clockOutTime[1]);
-        workHours = Math.max(0, (clockOutMinutes - clockInMinutes) / 60);
-      }
+      const record = allAttendance.find((entry) => entry.id === id);
+      const toDateTime = (timeValue) =>
+        timeValue && record?.date ? `${record.date}T${timeValue}:00` : null;
 
       return base44.entities.Attendance.update(id, {
-        ...data,
-        work_hours: workHours
+        first_check_in: toDateTime(data.clock_in),
+        last_check_out: toDateTime(data.clock_out),
+        status: data.status,
+        notes: data.notes,
+        has_active_session: !!data.clock_in && !data.clock_out,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allAttendance'] });
+      queryClient.invalidateQueries({ queryKey: ['todayAttendance'] });
       alert('Attendance updated successfully');
     },
     onError: (error) => {

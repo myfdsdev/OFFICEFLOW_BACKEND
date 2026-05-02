@@ -19,6 +19,8 @@ import {
   Power,
   PowerOff,
   Clock4,
+  Shield,
+  User,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
@@ -121,64 +123,87 @@ export default function ManageUserCard({ employee, onUpdated }) {
   };
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="overflow-hidden border border-lime-400/15 bg-[#020806] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <SettingsIcon className="w-5 h-5 text-indigo-600" />
+        <CardTitle className="flex items-center gap-2 text-lg text-white">
+          <SettingsIcon className="w-5 h-5 text-lime-300" />
           Manage User
         </CardTitle>
-        <CardDescription>Edit profile, role, status, shift, and security actions.</CardDescription>
+        <CardDescription className="text-lime-100/45">
+          Edit profile, role, status, shift, and security actions.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Editable fields */}
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Full name</Label>
+            <Label className="text-lime-100/75">Full name</Label>
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              className="border-lime-400/15 bg-black text-white placeholder:text-lime-100/25"
             />
           </div>
           <div className="space-y-2">
-            <Label>Employee ID</Label>
+            <Label className="text-lime-100/75">Employee ID</Label>
             <Input
               value={form.employee_id}
               onChange={(e) => setForm({ ...form, employee_id: e.target.value })}
+              className="border-lime-400/15 bg-black text-white placeholder:text-lime-100/25"
             />
           </div>
           <div className="space-y-2">
-            <Label>Department</Label>
+            <Label className="text-lime-100/75">Department</Label>
             <Input
               value={form.department}
               onChange={(e) => setForm({ ...form, department: e.target.value })}
+              className="border-lime-400/15 bg-black text-white placeholder:text-lime-100/25"
             />
           </div>
           <div className="space-y-2">
-            <Label>Mobile number</Label>
+            <Label className="text-lime-100/75">Mobile number</Label>
             <Input
               value={form.mobile_number}
               onChange={(e) => setForm({ ...form, mobile_number: e.target.value })}
+              className="border-lime-400/15 bg-black text-white placeholder:text-lime-100/25"
             />
           </div>
           <div className="space-y-2">
-            <Label>Role</Label>
-            <select
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full border rounded-md px-3 py-2 bg-white text-sm h-10"
-            >
-              <option value="user">Employee</option>
-              <option value="admin">Admin</option>
-            </select>
+            <Label className="text-lime-100/75">Role</Label>
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-lime-400/15 bg-black p-1">
+              {[
+                { value: "user", label: "Employee", icon: User },
+                { value: "admin", label: "Admin", icon: Shield },
+              ].map((role) => {
+                const Icon = role.icon;
+                const active = form.role === role.value;
+
+                return (
+                  <button
+                    key={role.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, role: role.value })}
+                    className={`flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition ${
+                      active
+                        ? "bg-lime-400 text-black shadow-[0_0_18px_rgba(163,211,18,0.22)]"
+                        : "text-lime-100/55 hover:bg-lime-400/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {role.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
+            <Label className="flex items-center gap-2 text-lime-100/75">
               <Clock4 className="w-4 h-4" /> Shift
             </Label>
             <select
               value={form.shift_id}
               onChange={(e) => setForm({ ...form, shift_id: e.target.value })}
-              className="w-full border rounded-md px-3 py-2 bg-white text-sm h-10"
+              className="h-10 w-full rounded-xl border border-lime-400/15 bg-black px-3 py-2 text-sm text-white outline-none focus:border-lime-400/40"
             >
               <option value="">None (use global office hours)</option>
               {shifts.map((s) => (
@@ -191,17 +216,17 @@ export default function ManageUserCard({ employee, onUpdated }) {
         </div>
 
         {/* Active toggle */}
-        <div className="flex items-center justify-between border rounded-lg p-3 bg-gray-50">
+        <div className="flex flex-col gap-3 rounded-2xl border border-lime-400/15 bg-black p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="font-medium text-gray-900 flex items-center gap-2">
+            <div className="font-semibold text-white flex items-center gap-2">
               {form.is_active ? (
-                <Power className="w-4 h-4 text-emerald-600" />
+                <Power className="w-4 h-4 text-lime-300" />
               ) : (
                 <PowerOff className="w-4 h-4 text-rose-600" />
               )}
               Account {form.is_active ? "Active" : "Deactivated"}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-lime-100/45">
               {form.is_active
                 ? "User can log in and use the app."
                 : "User cannot log in. Existing sessions are disconnected."}
@@ -210,7 +235,11 @@ export default function ManageUserCard({ employee, onUpdated }) {
           <Button
             type="button"
             variant={form.is_active ? "outline" : "default"}
-            className={form.is_active ? "" : "bg-emerald-600 hover:bg-emerald-700"}
+            className={
+              form.is_active
+                ? "border-rose-400/25 bg-transparent text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+                : "bg-lime-400 text-black hover:bg-lime-300"
+            }
             onClick={() => setForm({ ...form, is_active: !form.is_active })}
           >
             {form.is_active ? "Deactivate" : "Activate"}
@@ -218,41 +247,41 @@ export default function ManageUserCard({ employee, onUpdated }) {
         </div>
 
         {/* Read-only metadata */}
-        <div className="grid md:grid-cols-2 gap-3 text-sm bg-gray-50 rounded-lg p-3">
+        <div className="grid gap-3 rounded-2xl border border-lime-400/15 bg-black p-4 text-sm md:grid-cols-2">
           <div>
-            <div className="text-gray-500">Email</div>
-            <div className="font-medium text-gray-800">{employee.email}</div>
+            <div className="text-lime-100/40">Email</div>
+            <div className="break-words font-medium text-lime-100/80">{employee.email}</div>
           </div>
           <div>
-            <div className="text-gray-500">Auth provider</div>
-            <div className="font-medium text-gray-800 capitalize">
+            <div className="text-lime-100/40">Auth provider</div>
+            <div className="font-medium text-lime-100/80 capitalize">
               {employee.auth_provider || "local"}
             </div>
           </div>
           <div>
-            <div className="text-gray-500">Created</div>
-            <div className="font-medium text-gray-800">
+            <div className="text-lime-100/40">Created</div>
+            <div className="font-medium text-lime-100/80">
               {formatDate(employee.createdAt || employee.created_date)}
             </div>
           </div>
           <div>
-            <div className="text-gray-500">Last updated</div>
-            <div className="font-medium text-gray-800">
+            <div className="text-lime-100/40">Last updated</div>
+            <div className="font-medium text-lime-100/80">
               {formatDate(employee.updatedAt || employee.updated_date)}
             </div>
           </div>
           <div>
-            <div className="text-gray-500">Last active</div>
-            <div className="font-medium text-gray-800">{formatDate(employee.last_active)}</div>
+            <div className="text-lime-100/40">Last active</div>
+            <div className="font-medium text-lime-100/80">{formatDate(employee.last_active)}</div>
           </div>
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-3 pt-2 border-t">
+        <div className="flex flex-wrap gap-3 border-t border-lime-400/15 pt-4">
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-lime-400 font-bold text-black hover:bg-lime-300"
           >
             <Save className="w-4 h-4 mr-2" />
             {saving ? "Saving..." : "Save changes"}
@@ -262,6 +291,7 @@ export default function ManageUserCard({ employee, onUpdated }) {
             variant="outline"
             disabled={resetting || employee.auth_provider === "google"}
             onClick={handleSendReset}
+            className="border-lime-400/15 bg-transparent text-lime-100/75 hover:bg-lime-400/10 hover:text-white"
             title={
               employee.auth_provider === "google"
                 ? "Google-authenticated users cannot reset password"
@@ -274,7 +304,7 @@ export default function ManageUserCard({ employee, onUpdated }) {
           <Button
             type="button"
             variant="outline"
-            className="text-red-600 hover:text-red-700 ml-auto"
+            className="ml-auto border-rose-400/25 bg-transparent text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
             disabled={deleting}
             onClick={handleDelete}
           >

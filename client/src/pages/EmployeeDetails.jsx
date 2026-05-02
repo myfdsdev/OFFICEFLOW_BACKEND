@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,12 +19,19 @@ import StatusPieChart from '../components/charts/StatusPieChart';
 import AttendanceChart from '../components/charts/AttendanceChart';
 
 export default function EmployeeDetails() {
+  const queryClient = useQueryClient();
   const [currentUser, setCurrentUser] = useState(null);
+  const [now, setNow] = useState(() => new Date());
   const urlParams = new URLSearchParams(window.location.search);
   const employeeId = urlParams.get('id');
 
   useEffect(() => {
     base44.auth.me().then(setCurrentUser);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const { data: employee, isLoading: loadingEmployee } = useQuery({
@@ -59,13 +66,16 @@ export default function EmployeeDetails() {
     return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
-  const thisMonthAttendance = attendance.filter(a => 
-    a.date.startsWith(format(new Date(), 'yyyy-MM'))
+  const thisMonthAttendance = attendance.filter(a =>
+    a.date?.startsWith(format(new Date(), 'yyyy-MM'))
   );
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const todayAttendance = attendance.find(a => a.date === todayKey);
   const presentDays = thisMonthAttendance.filter(a => a.status === 'present').length;
   const absentDays = thisMonthAttendance.filter(a => a.status === 'absent').length;
   const totalHours = thisMonthAttendance.reduce((sum, a) => sum + (a.work_hours || 0), 0);
   const approvedLeaves = leaveRequests.filter(l => l.status === 'approved').length;
+  const todayWorked = formatWorkedTime(todayAttendance, now);
 
   if (!currentUser) {
     return (
@@ -133,18 +143,21 @@ export default function EmployeeDetails() {
                   {employee.department && (
                     <p className="text-lime-100/50 text-sm mt-1">{employee.department} - {employee.employee_id}</p>
                   )}
-                  <div className="flex items-center justify-center md:justify-start gap-2 mt-2">
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
                     {employee.role === 'admin' ? (
-                      <span className="inline-flex items-center px-3 py-1 bg-lime-400/10 text-lime-300 rounded-full text-sm font-medium">
-                        <Shield className="w-3 h-3 mr-1" />
+                      <span className="inline-flex items-center rounded-xl border border-lime-400/25 bg-lime-400/10 px-3 py-1.5 text-sm font-semibold text-lime-300 shadow-[0_0_18px_rgba(163,211,18,0.12)]">
+                        <Shield className="w-3.5 h-3.5 mr-1.5" />
                         Admin
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-3 py-1 bg-[#061006]/80 text-lime-100/65 rounded-full text-sm font-medium">
-                        <User className="w-3 h-3 mr-1" />
+                      <span className="inline-flex items-center rounded-xl border border-lime-400/15 bg-[#061006]/80 px-3 py-1.5 text-sm font-semibold text-lime-100/75">
+                        <User className="w-3.5 h-3.5 mr-1.5 text-lime-300" />
                         Employee
                       </span>
                     )}
+                    <span className="inline-flex items-center rounded-xl border border-lime-400/10 bg-black px-3 py-1.5 text-sm font-medium text-lime-100/50">
+                      {employee.is_active === false ? 'Inactive' : 'Active'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -154,11 +167,25 @@ export default function EmployeeDetails() {
 
         {currentUser?.role === 'admin' && (
           <div className="mb-6">
-            <ManageUserCard employee={employee} />
+            <ManageUserCard
+              employee={employee}
+              onUpdated={() => {
+                queryClient.invalidateQueries({ queryKey: ['employee', employeeId] });
+                queryClient.invalidateQueries({ queryKey: ['employees'] });
+              }}
+            />
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <StatsCard
+            title="Today Worked"
+            value={todayWorked.value}
+            subtitle={todayWorked.subtitle}
+            icon={Clock}
+            color="green"
+            delay={0.05}
+          />
           <StatsCard
             title="Present Days"
             value={presentDays}
@@ -215,4 +242,21 @@ export default function EmployeeDetails() {
       </div>
     </div>
   );
+}
+
+function formatWorkedTime(attendance, now) {
+  if (!attendance?.first_check_in) {
+    return { value: '0h 0m', subtitle: 'Not checked in today' };
+  }
+
+  const start = new Date(attendance.first_check_in);
+  const end = attendance.last_check_out ? new Date(attendance.last_check_out) : now;
+  const totalMinutes = Math.max(0, Math.floor((end - start) / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return {
+    value: `${hours}h ${minutes}m`,
+    subtitle: attendance.last_check_out ? 'Completed today' : 'Working now',
+  };
 }

@@ -10,6 +10,9 @@ const DEFAULT_SETTINGS = {
   html_title: 'AttendEase',
   favicon: '',
   primary_color: '#6366f1',
+  auto_checkout_enabled: true,
+  auto_checkout_hours: 2,
+  auto_checkout_warning_minutes: 20,
 };
 
 const AppSettingsContext = createContext({

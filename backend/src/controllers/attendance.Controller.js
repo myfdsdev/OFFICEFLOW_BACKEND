@@ -4,6 +4,36 @@ import Notification from "../models/Notification.js";
 import User from "../models/User.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
+const applyDateRangeFilter = (filter, query) => {
+  const dateRange = {};
+  const dateFilter = query.date;
+
+  if (dateFilter && typeof dateFilter === "object") {
+    if (dateFilter.$gte) dateRange.$gte = dateFilter.$gte;
+    if (dateFilter.$lte) dateRange.$lte = dateFilter.$lte;
+    if (dateFilter.$gt) dateRange.$gt = dateFilter.$gt;
+    if (dateFilter.$lt) dateRange.$lt = dateFilter.$lt;
+  }
+
+  if (query["date[$gte]"]) dateRange.$gte = query["date[$gte]"];
+  if (query["date[$lte]"]) dateRange.$lte = query["date[$lte]"];
+  if (query["date[$gt]"]) dateRange.$gt = query["date[$gt]"];
+  if (query["date[$lt]"]) dateRange.$lt = query["date[$lt]"];
+  if (query.startDate) dateRange.$gte = query.startDate;
+  if (query.endDate) dateRange.$lte = query.endDate;
+
+  delete filter["date[$gte]"];
+  delete filter["date[$lte]"];
+  delete filter["date[$gt]"];
+  delete filter["date[$lt]"];
+  delete filter.startDate;
+  delete filter.endDate;
+
+  if (Object.keys(dateRange).length) {
+    filter.date = dateRange;
+  }
+};
+
 // Helper: determine status based on check-in time
 const getCheckInStatus = (date) => {
   const hours = date.getHours();
@@ -199,15 +229,7 @@ export const filterAttendance = asyncHandler(async (req, res) => {
   delete filter.limit;
   delete filter.sort;
 
-  // Handle date range passed as object: date[$gte], date[$lte]
-  if (filter.date && typeof filter.date === 'object') {
-    const dateRange = {};
-    if (filter.date.$gte) dateRange.$gte = filter.date.$gte;
-    if (filter.date.$lte) dateRange.$lte = filter.date.$lte;
-    if (filter.date.$gt) dateRange.$gt = filter.date.$gt;
-    if (filter.date.$lt) dateRange.$lt = filter.date.$lt;
-    filter.date = dateRange;
-  }
+  applyDateRangeFilter(filter, req.query);
 
   const sort = req.query.sort || '-date';
   const limit = parseInt(req.query.limit) || 100;
@@ -232,28 +254,27 @@ export const getAttendanceById = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 export const updateAttendance = asyncHandler(async (req, res) => {
   const updates = req.body;
+  const existing = await Attendance.findById(req.params.id);
+
+  if (!existing) {
+    return res.status(404).json({ error: "Attendance not found" });
+  }
 
   // Recalc work_hours if both times provided
-  if (updates.first_check_in && updates.last_check_out) {
-    const inTime = new Date(updates.first_check_in);
-    const outTime = new Date(updates.last_check_out);
+  const firstCheckIn = updates.first_check_in || existing.first_check_in;
+  const lastCheckOut = updates.last_check_out || existing.last_check_out;
+  if (firstCheckIn && lastCheckOut) {
+    const inTime = new Date(firstCheckIn);
+    const outTime = new Date(lastCheckOut);
     updates.work_hours = parseFloat(
       ((outTime - inTime) / (1000 * 60 * 60)).toFixed(2),
     );
   }
 
-  const attendance = await Attendance.findByIdAndUpdate(
-    req.params.id,
-    updates,
-    {
-      new: true,
-      runValidators: true,
-    },
-  );
-
-  if (!attendance) {
-    return res.status(404).json({ error: "Attendance not found" });
-  }
+  const attendance = await Attendance.findByIdAndUpdate(req.params.id, updates, {
+    new: true,
+    runValidators: true,
+  });
 
   res.json(attendance);
 });

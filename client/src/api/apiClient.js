@@ -291,6 +291,22 @@ const functions = {
     api.post("/functions/get-users-for-messaging").then((r) => r.data),
 };
 
+// ========== ATTENDANCE ACTIONS ==========
+const attendance = {
+  checkIn: async (data = {}) => {
+    const res = await api.post("/attendance/check-in", data);
+    return normalizeItem(res.data);
+  },
+  checkOut: async (data = {}) => {
+    const res = await api.post("/attendance/check-out", data);
+    return normalizeItem(res.data);
+  },
+  today: async () => {
+    const res = await api.get("/attendance/today");
+    return normalizeItem(res.data);
+  },
+};
+
 // ========== INTEGRATIONS ==========
 const integrations = {
   Core: {
@@ -365,6 +381,18 @@ const users = {
       full_name: extraData.full_name || email.split("@")[0],
       ...extraData,
     });
+    return res.data;
+  },
+  adminUpdate: async (userId, data) => {
+    const res = await api.put(`/users/${userId}`, data);
+    return normalizeItem(res.data.user || res.data);
+  },
+  adminDelete: async (userId) => {
+    const res = await api.delete(`/users/${userId}`);
+    return res.data;
+  },
+  sendPasswordReset: async (userId) => {
+    const res = await api.post(`/users/${userId}/send-password-reset`, {});
     return res.data;
   },
 };
@@ -447,6 +475,7 @@ export const base44 = {
   entities,
   auth,
   functions,
+  attendance,
   integrations,
   upload,
   users,

@@ -242,7 +242,7 @@ export default function AttendanceHistoryPage() {
   const lateDays = filteredAttendance.filter((a) => a.status === "late").length;
 
   const totalHours = filteredAttendance.reduce(
-    (sum, a) => sum + (a.total_work_hours || 0),
+    (sum, a) => sum + (a.work_hours || a.total_work_hours || 0),
     0
   );
 
@@ -282,7 +282,7 @@ export default function AttendanceHistoryPage() {
 
       return {
         day: format(day, dayCount > 10 ? "dd MMM" : "EEE"),
-        hours: Number(entry?.total_work_hours || 0),
+        hours: Number(entry?.work_hours || entry?.total_work_hours || 0),
       };
     });
   }, [attendance, activeDateRange]);

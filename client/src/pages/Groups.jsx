@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   UserPlus,
+  UserMinus,
   X,
   CheckCircle2,
   AlertCircle,
@@ -35,6 +36,9 @@ export default function Groups() {
   const [user, setUser] = useState(null);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [feedback, setFeedback] = useState({ type: "", message: "" });
 
   const [formData, setFormData] = useState({
@@ -62,6 +66,23 @@ export default function Groups() {
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list("-created_date", 100),
     enabled: !!user,
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["groupEmployees"],
+    queryFn: () => base44.entities.User.list("-full_name", 500),
+    enabled: !!user,
+  });
+
+  const { data: selectedMembers = [], isLoading: membersLoading } = useQuery({
+    queryKey: ["groupMembers", selectedGroup?.id],
+    queryFn: () =>
+      base44.entities.GroupMember.filter(
+        { group_id: selectedGroup.id },
+        "user_name",
+        500
+      ),
+    enabled: !!selectedGroup?.id && manageOpen,
   });
 
   const createGroupMutation = useMutation({
@@ -107,6 +128,55 @@ export default function Groups() {
     },
   });
 
+  const addMemberMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedGroup?.id || !selectedUserId) {
+        throw new Error("Select a member to add.");
+      }
+
+      return base44.entities.GroupMember.create({
+        group_id: selectedGroup.id,
+        user_id: selectedUserId,
+        role: "member",
+      });
+    },
+    onSuccess: async () => {
+      setSelectedUserId("");
+      await queryClient.invalidateQueries({
+        queryKey: ["groupMembers", selectedGroup?.id],
+      });
+      setFeedback({
+        type: "success",
+        message: "Member added to group.",
+      });
+    },
+    onError: (error) => {
+      setFeedback({
+        type: "error",
+        message: error?.message || "Failed to add member.",
+      });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (memberId) => base44.entities.GroupMember.delete(memberId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["groupMembers", selectedGroup?.id],
+      });
+      setFeedback({
+        type: "success",
+        message: "Member removed from group.",
+      });
+    },
+    onError: (error) => {
+      setFeedback({
+        type: "error",
+        message: error?.message || "Failed to remove member.",
+      });
+    },
+  });
+
   const filtered = groups.filter((group) => {
     const name = group.group_name || group.name || "";
     const description = group.description || "";
@@ -115,6 +185,17 @@ export default function Groups() {
       .toLowerCase()
       .includes(search.toLowerCase());
   });
+
+  const memberUserIds = new Set(selectedMembers.map((member) => String(member.user_id)));
+  const availableEmployees = employees.filter(
+    (employee) => !memberUserIds.has(String(employee.id))
+  );
+
+  const openManageMembers = (group) => {
+    setSelectedGroup(group);
+    setSelectedUserId("");
+    setManageOpen(true);
+  };
 
   if (!user) {
     return (
@@ -246,6 +327,7 @@ export default function Groups() {
 
                     <Button
                       size="sm"
+                      onClick={() => openManageMembers(group)}
                       className="bg-lime-400 font-bold text-black hover:bg-lime-300"
                     >
                       <UserPlus className="mr-1 h-4 w-4" />
@@ -347,6 +429,100 @@ export default function Groups() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MANAGE MEMBERS DIALOG */}
+      <Dialog
+        open={manageOpen}
+        onOpenChange={(open) => {
+          setManageOpen(open);
+          if (!open) {
+            setSelectedGroup(null);
+            setSelectedUserId("");
+          }
+        }}
+      >
+        <DialogContent className="rounded-[2rem] border border-lime-400/20 bg-[#020806] text-white sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <UserPlus className="h-5 w-5 text-lime-300" />
+              Manage Members
+            </DialogTitle>
+            <DialogDescription className="text-lime-100/50">
+              {selectedGroup?.group_name || selectedGroup?.name || "Group"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 pt-2">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-lime-400/15 bg-[#061006]/80 px-4 py-3 text-white outline-none focus:border-lime-400/40"
+              >
+                <option value="">Select employee</option>
+                {availableEmployees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.full_name || employee.email}
+                  </option>
+                ))}
+              </select>
+
+              <Button
+                type="button"
+                disabled={!selectedUserId || addMemberMutation.isPending}
+                onClick={() => addMemberMutation.mutate()}
+                className="bg-lime-400 font-bold text-black hover:bg-lime-300"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                {addMemberMutation.isPending ? "Adding..." : "Add"}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime-100/40">
+                Current Members
+              </p>
+
+              {membersLoading ? (
+                <div className="rounded-xl border border-lime-400/15 bg-[#061006]/80 p-4 text-sm text-lime-100/50">
+                  Loading members...
+                </div>
+              ) : selectedMembers.length === 0 ? (
+                <div className="rounded-xl border border-lime-400/15 bg-[#061006]/80 p-4 text-sm text-lime-100/50">
+                  No members in this group yet.
+                </div>
+              ) : (
+                selectedMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-lime-400/15 bg-[#061006]/80 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {member.user_name}
+                      </p>
+                      <p className="truncate text-xs text-lime-100/45">
+                        {member.user_email} • {member.role}
+                      </p>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={removeMemberMutation.isPending}
+                      onClick={() => removeMemberMutation.mutate(member.id)}
+                      className="shrink-0 border-rose-400/20 bg-transparent text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+                    >
+                      <UserMinus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

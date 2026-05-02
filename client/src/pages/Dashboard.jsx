@@ -340,15 +340,7 @@ export default function Dashboard() {
         throw new Error('You have already checked in today.');
       }
 
-      return base44.entities.Attendance.create({
-        employee_id: user.id,
-        employee_email: user.email,
-        employee_name: user.full_name,
-        date: today,
-        first_check_in: new Date().toISOString(),
-        status: 'present',
-        has_active_session: true,
-      });
+      return base44.attendance.checkIn();
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['myAttendance'] });
@@ -375,10 +367,7 @@ export default function Dashboard() {
         throw new Error('You have already checked out today.');
       }
 
-      return base44.entities.Attendance.update(todayAttendance.id, {
-        last_check_out: new Date().toISOString(),
-        has_active_session: false,
-      });
+      return base44.attendance.checkOut();
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['myAttendance'] });
@@ -576,7 +565,7 @@ export default function Dashboard() {
         </SectionCard>
 
         {/* Main Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-[220px_1fr] gap-6 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-6 items-start">
           {/* Left */}
           <div className="flex flex-col items-center justify-start gap-6 pt-2">
             <AnimatePresence mode="wait">
@@ -615,6 +604,13 @@ export default function Dashboard() {
                 />
               )}
             </AnimatePresence>
+
+            <SmartTimer
+              className="w-full max-w-[320px]"
+              firstCheckIn={todayAttendance?.first_check_in}
+              lastCheckOut={todayAttendance?.last_check_out}
+              userShift={user?.shift_id}
+            />
           </div>
 
           {/* Right */}
@@ -624,12 +620,6 @@ export default function Dashboard() {
                 <p className="text-sm mb-3" style={{ color: THEME.muted }}>
                   Today's Hours
                 </p>
-
-                <SmartTimer
-                  firstCheckIn={todayAttendance?.first_check_in}
-                  lastCheckOut={todayAttendance?.last_check_out}
-                  userShift={user?.shift_id}
-                />
 
                 <div className="mt-4">
                   <div

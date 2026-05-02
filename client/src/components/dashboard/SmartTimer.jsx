@@ -8,18 +8,23 @@ import { Flame, Clock, CheckCircle2 } from 'lucide-react';
  * - Subline: today's date
  * - Status line below: countdown / overtime / total worked / not checked in
  */
-export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift }) {
+export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift, className = "" }) {
   const { settings } = useAppSettings();
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => (lastCheckOut ? new Date(lastCheckOut) : new Date()));
 
   const effectiveEndTime = userShift?.end_time || settings.office_end_time;
   const shiftLabel = userShift?.name || null;
 
   // Tick once per second
   useEffect(() => {
+    if (lastCheckOut) {
+      setNow(new Date(lastCheckOut));
+      return undefined;
+    }
+
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [lastCheckOut]);
 
   const parseTimeToday = (timeStr) => {
     if (!timeStr) return null;
@@ -76,17 +81,17 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift }) {
   }
 
   return (
-    <div className="text-center">
+    <div className={`text-center ${className}`}>
       {/* Live wall clock — main display */}
-      <div className="text-6xl font-bold font-mono tracking-tight text-gray-900 tabular-nums">
+      <div className="text-4xl sm:text-5xl font-bold font-mono tracking-tight text-[#f4f7ea] tabular-nums">
         {liveTime}
       </div>
-      <p className="text-xs text-gray-400 mt-1">{liveDate}</p>
+      <p className="text-xs text-[#8a9472] mt-1">{liveDate}</p>
 
       {/* Status line (smart timer info) */}
       <div className="flex items-center justify-center gap-2 mt-4">
         {mode === 'idle' && (
-          <p className="text-gray-400 text-sm">Not checked in</p>
+          <p className="text-[#8a9472] text-sm">Not checked in</p>
         )}
         {mode === 'countdown' && (
           <>
@@ -117,7 +122,7 @@ export default function SmartTimer({ firstCheckIn, lastCheckOut, userShift }) {
 
       {/* Helper text */}
       {mode === 'countdown' && effectiveEndTime && (
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-[#8a9472] mt-1">
           Until {formatDisplayTime(effectiveEndTime)}
           {shiftLabel && <span className="ml-1">· {shiftLabel}</span>}
         </p>

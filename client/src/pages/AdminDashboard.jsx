@@ -18,6 +18,7 @@ import {
   Palette
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
 
 import StatsCard from '../components/attendance/StatsCard';
 import EmployeeList from '../components/admin/EmployeeList';
@@ -172,10 +173,10 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['allAttendance'] });
       queryClient.invalidateQueries({ queryKey: ['todayAttendance'] });
-      alert('Attendance updated successfully');
+      toast.success('Attendance updated successfully');
     },
     onError: (error) => {
-      alert(error.message || 'Failed to update attendance');
+      toast.error(error.message || 'Failed to update attendance');
     },
   });
 

@@ -159,7 +159,7 @@ export default function CompleteProfile() {
           </CardHeader>
 
           <CardContent className="p-6 md:p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               {/* Profile Photo */}
               <div className="rounded-3xl border border-lime-400/15 bg-black p-5">
                 <div className="flex flex-col items-center gap-4 md:flex-row md:items-center md:justify-between">
@@ -221,7 +221,6 @@ export default function CompleteProfile() {
                       placeholder="+1 (555) 000-0000"
                       value={formData.mobile_number}
                       onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
-                      required
                       className="border-lime-400/15 bg-black pl-10 text-white placeholder:text-lime-100/25"
                     />
                   </div>
@@ -236,7 +235,6 @@ export default function CompleteProfile() {
                       placeholder="EMP001"
                       value={formData.employee_id}
                       onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
-                      required
                       className="border-lime-400/15 bg-black pl-10 text-white placeholder:text-lime-100/25"
                     />
                   </div>
@@ -252,7 +250,6 @@ export default function CompleteProfile() {
                 <Select
                   value={formData.department}
                   onValueChange={(value) => setFormData({ ...formData, department: value })}
-                  required
                 >
                   <SelectTrigger className="h-11 rounded-xl border-lime-400/15 bg-black text-white">
                     <SelectValue placeholder="Select your department" />

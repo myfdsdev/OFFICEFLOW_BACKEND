@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Save, Clock, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
   
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
 import CustomShifts from "@/components/admin/CustomShifts";
@@ -67,10 +68,10 @@ export default function Settings() {
         working_days: settings.working_days,
       });
       setSaving(false);
-      alert("Settings saved successfully!");
+      toast.success("Settings saved successfully!");
     } catch (error) {
       setSaving(false);
-      alert("Failed to save settings: " + error.message);
+      toast.error("Failed to save settings: " + error.message);
     }
   };
 

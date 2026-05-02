@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Users, Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function CreateGroupDialog({ open, onClose, currentUser }) {
   const [groupName, setGroupName] = useState("");
@@ -134,15 +135,17 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
       onClose();
     },
     onError: (error) => {
-      alert(`Failed to create group: ${error?.error || error?.message || "Unknown error"}`);
+      toast.error(`Failed to create group: ${error?.error || error?.message || "Unknown error"}`);
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (groupName.trim()) {
-      createGroupMutation.mutate();
+    if (!groupName.trim()) {
+      toast.error("Please enter a group name");
+      return;
     }
+    createGroupMutation.mutate();
   };
 
   const toggleMember = (userId) => {
@@ -173,7 +176,7 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div className="space-y-2">
             <Label htmlFor="groupName">Group Name *</Label>
             <Input
@@ -181,7 +184,6 @@ export default function CreateGroupDialog({ open, onClose, currentUser }) {
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Enter group name"
-              required
             />
           </div>
 

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Clock4, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { showAppConfirm } from "@/components/ui/app-alert";
 
 const fieldClass =
   "bg-black border-lime-400/15 text-white placeholder:text-lime-100/30 focus-visible:ring-lime-400/30";
@@ -58,6 +59,11 @@ export default function CustomShifts() {
   };
 
   const handleUpdate = async (id) => {
+    if (!draft.name.trim()) {
+      toast.error("Shift name is required");
+      return;
+    }
+
     try {
       await base44.shifts.update(id, draft);
       toast.success("Shift updated");
@@ -69,7 +75,15 @@ export default function CustomShifts() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this shift? Employees assigned to it will be unassigned.")) return;
+    const confirmed = await showAppConfirm({
+      title: "Delete this shift?",
+      description: "Employees assigned to it will be unassigned.",
+      actionLabel: "Delete shift",
+      variant: "destructive",
+    });
+
+    if (!confirmed) return;
+
     try {
       await base44.shifts.remove(id);
       toast.success("Shift deleted");

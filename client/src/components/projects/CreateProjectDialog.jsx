@@ -9,6 +9,7 @@ import { base44 } from '@/api/base44Client';
 import { X } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { toast } from "react-hot-toast";
 
 const columnOptions = [
   { id: 'owner', label: 'Owner', description: 'Assign task to team member' },
@@ -84,7 +85,15 @@ export default function CreateProjectDialog({ open, onClose, currentUser }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createProjectMutation.mutate(formData);
+    if (!formData.project_name.trim()) {
+      toast.error("Please enter a project name");
+      return;
+    }
+
+    createProjectMutation.mutate({
+      ...formData,
+      project_name: formData.project_name.trim(),
+    });
   };
 
   const toggleColumn = (columnId) => {
@@ -133,14 +142,13 @@ export default function CreateProjectDialog({ open, onClose, currentUser }) {
             <DialogTitle>Create New Project</DialogTitle>
           </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <Label>Project Name *</Label>
             <Input
               value={formData.project_name}
               onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
               placeholder="Enter project name"
-              required
             />
           </div>
 

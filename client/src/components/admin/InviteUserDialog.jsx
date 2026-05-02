@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Loader2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 export default function InviteUserDialog({ open, onOpenChange }) {
   const [email, setEmail] = useState('');
@@ -40,15 +41,19 @@ export default function InviteUserDialog({ open, onOpenChange }) {
       setEmail('');
       setRole('user');
       onOpenChange(false);
-      alert('Invitation sent successfully!');
+      toast.success('Invitation sent successfully!');
     },
     onError: (error) => {
-      alert(error.message || 'Failed to send invitation');
+      toast.error(error.message || 'Failed to send invitation');
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!email.trim()) {
+      toast.error('Please enter an email address');
+      return;
+    }
     inviteUserMutation.mutate();
   };
 
@@ -61,7 +66,7 @@ export default function InviteUserDialog({ open, onOpenChange }) {
             Send an invitation link via email. The user will receive an email to join your team.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
@@ -74,7 +79,6 @@ export default function InviteUserDialog({ open, onOpenChange }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
-                  required
                   disabled={inviteUserMutation.isPending}
                 />
               </div>

@@ -1,4 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as HotToaster } from "react-hot-toast";
+import { AppAlertHost } from "@/components/ui/app-alert";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClientInstance } from "@/lib/query-client";
 import NavigationTracker from "@/lib/NavigationTracker";
@@ -156,6 +158,20 @@ function App() {
             </ActivityTrackerProvider>
           </Router>
           <Toaster />
+          <HotToaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: "#020806",
+                color: "#fff",
+                border: "1px solid rgba(163, 230, 53, 0.18)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
+              },
+              success: { iconTheme: { primary: "#a3e635", secondary: "#020806" } },
+              error: { iconTheme: { primary: "#fb7185", secondary: "#020806" } },
+            }}
+          />
+          <AppAlertHost />
         </QueryClientProvider>
       </AuthProvider>
     </AppSettingsProvider>

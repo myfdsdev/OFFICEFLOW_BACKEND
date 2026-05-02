@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Shield, User, Trash2, UserPlus } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import AddMemberDialog from './AddMemberDialog';
+import { toast } from "react-hot-toast";
 
 export default function GroupMembersDialog({ open, onClose, group, currentUser }) {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function GroupMembersDialog({ open, onClose, group, currentUser }
       queryClient.invalidateQueries({ queryKey: ['all-group-members'] });
     },
     onError: (error) => {
-      alert(`Failed to remove member: ${error.message}`);
+      toast.error(`Failed to remove member: ${error.message}`);
     },
   });
 

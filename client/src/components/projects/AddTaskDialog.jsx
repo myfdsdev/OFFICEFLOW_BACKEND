@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { toast } from "react-hot-toast";
 
 export default function AddTaskDialog({ open, onClose, project, members }) {
   const [taskName, setTaskName] = useState('');
@@ -21,9 +22,14 @@ export default function AddTaskDialog({ open, onClose, project, members }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!taskName.trim()) {
+      toast.error("Please enter a task name");
+      return;
+    }
+
     createTaskMutation.mutate({
       project_id: project.id,
-      task_name: taskName,
+      task_name: taskName.trim(),
       status: 'not_started',
       priority: 'medium',
     });
@@ -36,14 +42,13 @@ export default function AddTaskDialog({ open, onClose, project, members }) {
           <DialogTitle>Add New Task</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <Label>Task Name *</Label>
             <Input
               value={taskName}
               onChange={(e) => setTaskName(e.target.value)}
               placeholder="Enter task name"
-              required
               autoFocus
             />
           </div>

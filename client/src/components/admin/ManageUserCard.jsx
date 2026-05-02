@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { format } from "date-fns";
+import { showAppConfirm } from "@/components/ui/app-alert";
 
 const formatDate = (d) => {
   if (!d) return "—";
@@ -70,6 +71,26 @@ export default function ManageUserCard({ employee, onUpdated }) {
   const userId = employee?.id || employee?._id;
 
   const handleSave = async () => {
+    if (!form.full_name.trim()) {
+      toast.error("Full name is required");
+      return;
+    }
+
+    if (!form.employee_id.trim()) {
+      toast.error("Employee ID is required");
+      return;
+    }
+
+    if (!form.department.trim()) {
+      toast.error("Department is required");
+      return;
+    }
+
+    if (form.mobile_number && form.mobile_number.trim().length < 8) {
+      toast.error("Mobile number looks too short");
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await base44.users.adminUpdate(userId, {
@@ -97,7 +118,14 @@ export default function ManageUserCard({ employee, onUpdated }) {
   };
 
   const handleSendReset = async () => {
-    if (!window.confirm(`Send a password-reset email to ${employee.email}?`)) return;
+    const confirmed = await showAppConfirm({
+      title: "Send password reset?",
+      description: `Send a password-reset email to ${employee.email}?`,
+      actionLabel: "Send reset email",
+    });
+
+    if (!confirmed) return;
+
     setResetting(true);
     try {
       await base44.users.sendPasswordReset(userId);
@@ -110,7 +138,15 @@ export default function ManageUserCard({ employee, onUpdated }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Permanently delete ${employee.email}? This cannot be undone.`)) return;
+    const confirmed = await showAppConfirm({
+      title: "Delete this user?",
+      description: `Permanently delete ${employee.email}? This cannot be undone.`,
+      actionLabel: "Delete user",
+      variant: "destructive",
+    });
+
+    if (!confirmed) return;
+
     setDeleting(true);
     try {
       await base44.users.adminDelete(userId);

@@ -356,6 +356,7 @@ export default function Groups() {
 
           <form
             className="space-y-4 pt-2"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               createGroupMutation.mutate();

@@ -178,3 +178,85 @@ export const sendLeaveApprovalEmail = async (
     `,
   });
 };
+
+export const sendSalaryPaidEmail = async (
+  to,
+  employeeName,
+  month,
+  netSalary,
+  paymentMethod,
+  transactionId,
+  paidDate,
+  payslipUrl,
+  currencySymbol = '₹'
+) => {
+  const monthName = new Date(`${month}-01`).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return sendEmail({
+    to,
+    subject: `Your Salary for ${monthName} has been Paid ✅`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 28px;">💰 Payment Received</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Your salary has been successfully credited</p>
+        </div>
+        <div style="background: white; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+          <p style="color: #1f2937; font-size: 16px;">Hi ${employeeName},</p>
+          <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+            We're pleased to inform you that your salary for <strong>${monthName}</strong> has been paid.
+          </p>
+
+          <div style="background: #f0fdf4; padding: 25px; border-radius: 12px; border: 2px solid #bbf7d0; margin: 20px 0;">
+            <div style="text-align: center;">
+              <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">NET SALARY</p>
+              <p style="color: #10b981; font-size: 36px; font-weight: bold; margin: 0;">
+                ${currencySymbol}${netSalary.toLocaleString('en-IN', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #1f2937; margin-top: 0;">Payment Details:</h3>
+            <p style="margin: 10px 0; color: #4b5563;">
+              <strong>Payment Method:</strong> ${paymentMethod || 'N/A'}
+            </p>
+            ${
+              transactionId
+                ? `<p style="margin: 10px 0; color: #4b5563;">
+              <strong>Transaction ID:</strong> ${transactionId}
+            </p>`
+                : ''
+            }
+            <p style="margin: 10px 0; color: #4b5563;">
+              <strong>Paid Date:</strong> ${new Date(paidDate).toLocaleDateString()}
+            </p>
+          </div>
+
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${payslipUrl}"
+               style="background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold; font-size: 16px;">
+              📄 Download Payslip
+            </a>
+          </div>
+
+          <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
+            Your detailed payslip is available for download. It includes a complete breakdown of your earnings, deductions, and net salary.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+          <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+            © ${new Date().getFullYear()} AttendEase. All rights reserved.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+};

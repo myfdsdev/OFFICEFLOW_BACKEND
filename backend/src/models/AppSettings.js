@@ -50,6 +50,39 @@ const appSettingsSchema = new mongoose.Schema({
     min: 1,
     max: 120,
   },
+  // ===== Salary Management Settings =====
+  currency: {
+    type: String,
+    default: 'INR',
+  },
+  currency_symbol: {
+    type: String,
+    default: '₹',
+  },
+  late_penalty: {
+    type: Number,
+    default: 100,
+  },
+  half_day_deduction: {
+    type: Number,
+    default: 500,
+  },
+  overtime_rate_per_hour: {
+    type: Number,
+    default: 250,
+  },
+  overtime_multiplier: {
+    type: Number,
+    default: 1.5,
+  },
+  working_days_per_month: {
+    type: Number,
+    default: 22,
+  },
+  standard_hours_per_day: {
+    type: Number,
+    default: 8,
+  },
   // Tracking
   updated_by: {
     type: String,

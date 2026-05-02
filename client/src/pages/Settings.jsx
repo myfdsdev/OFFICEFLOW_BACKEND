@@ -17,6 +17,7 @@ import { toast } from "react-hot-toast";
   
 import AppSettingsForm from "@/components/admin/AppSettingsForm";
 import CustomShifts from "@/components/admin/CustomShifts";
+import SalaryRulesForm from "@/components/admin/SalaryRulesForm";
 export default function Settings() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +29,7 @@ export default function Settings() {
     working_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
   });
   const [saving, setSaving] = useState(false);
+  const [appSettings, setAppSettings] = useState(null);
 
   useEffect(() => {
     base44.auth
@@ -55,6 +57,11 @@ export default function Settings() {
       .catch(() => {
         setLoading(false);
       });
+
+    base44.appSettings
+      .get()
+      .then(setAppSettings)
+      .catch(() => {});
   }, []);
 
   const handleSave = async () => {
@@ -308,6 +315,17 @@ export default function Settings() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
+            >
+              <SalaryRulesForm
+                appSettings={appSettings}
+                onSuccess={() => base44.appSettings.get().then(setAppSettings)}
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
             >
               <CustomShifts />
             </motion.div>

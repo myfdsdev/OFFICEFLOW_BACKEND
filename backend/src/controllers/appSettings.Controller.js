@@ -30,6 +30,14 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
     'auto_checkout_enabled',
     'auto_checkout_hours',
     'auto_checkout_warning_minutes',
+    'currency',
+    'currency_symbol',
+    'late_penalty',
+    'half_day_deduction',
+    'overtime_rate_per_hour',
+    'overtime_multiplier',
+    'working_days_per_month',
+    'standard_hours_per_day',
   ];
 
   allowedFields.forEach((field) => {

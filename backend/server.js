@@ -35,6 +35,7 @@ import shiftRoutes from "./src/routes/shift.Routes.js";
 import activityRoutes from "./src/routes/activity.Routes.js";
 import leaderboardRoutes from "./src/routes/leaderboard.Routes.js";
 import analyticsRoutes from "./src/routes/analytics.Routes.js";
+import salaryRoutes from "./src/routes/salary.Routes.js";
 // Load env FIRST
 
 // Config & middleware imports
@@ -158,6 +159,7 @@ app.use("/api/functions", functionsRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/salary", salaryRoutes);
 
 // ==========================================
 // ERROR HANDLING (must be last!)

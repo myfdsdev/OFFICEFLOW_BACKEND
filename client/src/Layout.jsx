@@ -27,6 +27,7 @@ import {
   UserCircle,
   BarChart3,
   Trophy,
+  DollarSign,
 } from "lucide-react";
 import NotificationBell from "./components/notifications/NotificationBell";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
@@ -41,6 +42,7 @@ const employeeNavItems = [
   { name: "Dashboard", page: "Dashboard", icon: LayoutDashboard },
   { name: "Attendance History", page: "AttendanceHistory", icon: Clock },
   { name: "My Stats", page: "MyStats", icon: BarChart3 },
+  { name: "My Salary", page: "MySalary", icon: DollarSign },
   { name: "Leave Requests", page: "LeaveRequests", icon: FileText },
   { name: "Leaderboard", page: "Leaderboard", icon: Trophy },
   { name: "Projects", page: "Projects", icon: LayoutDashboard },
@@ -52,6 +54,8 @@ const employeeNavItems = [
 const adminNavItems = [
   { name: "Admin Dashboard", page: "AdminDashboard", icon: LayoutDashboard },
   { name: "Attendance Reports", page: "AttendanceReports", icon: BarChart3 },
+  { name: "Salary Board", page: "SalaryBoard", icon: DollarSign },
+  { name: "Salary Config", page: "SalaryConfig", icon: DollarSign },
   { name: "Settings", page: "Settings", icon: Settings },
   { name: "My Dashboard", page: "Dashboard", icon: Users },
   { name: "Attendance History", page: "AttendanceHistory", icon: Clock },
@@ -106,7 +110,7 @@ export default function Layout({ children, currentPageName }) {
           )}
 
           <div className="space-y-1">
-            {adminNavItems.slice(0, 3).map((item) => {
+            {adminNavItems.slice(0, 5).map((item) => {
               const Icon = item.icon;
               const isActive = currentPageName === item.page;
 
@@ -156,7 +160,7 @@ export default function Layout({ children, currentPageName }) {
 
         <div className="space-y-1">
           {(user?.role === "admin"
-            ? adminNavItems.slice(3)
+            ? adminNavItems.slice(5)
             : employeeNavItems
           ).map((item) => {
             const Icon = item.icon;

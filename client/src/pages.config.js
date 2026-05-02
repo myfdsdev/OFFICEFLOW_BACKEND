@@ -26,6 +26,10 @@ import Register from './pages/Register';
 import Leaderboard from './pages/Leaderboard';
 import MyStats from './pages/MyStats';
 import ResetPassword from './pages/ResetPassword';
+import SalaryBoard from './pages/admin/SalaryBoard';
+import SalaryConfig from './pages/admin/SalaryConfig';
+import SalaryDetail from './pages/admin/SalaryDetail';
+import MySalary from './pages/MySalary';
 
 export const PAGES = {
     "AccessDenied": AccessDenied,
@@ -41,12 +45,16 @@ export const PAGES = {
     "Leaderboard": Leaderboard,
     "LeaveRequests": LeaveRequests,
     "MyProfile": MyProfile,
+    "MySalary": MySalary,
     "MyStats": MyStats,
     "Pricing": Pricing,
     "PrivacyPolicy": PrivacyPolicy,
     "ProjectBoard": ProjectBoard,
     "Projects": Projects,
     "ResetPassword": ResetPassword,
+    "SalaryBoard": SalaryBoard,
+    "SalaryConfig": SalaryConfig,
+    "admin/salary/:userId/:month": SalaryDetail,
     "Settings": Settings,
     "Welcome": Welcome,
     "Login": Login,

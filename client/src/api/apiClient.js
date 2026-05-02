@@ -395,6 +395,10 @@ const users = {
     const res = await api.post(`/users/${userId}/send-password-reset`, {});
     return res.data;
   },
+  getById: async (userId) => {
+    const res = await api.get(`/users/${userId}`);
+    return normalizeItem(res.data.user || res.data);
+  },
 };
 
 // ========== SHIFTS ==========
@@ -464,6 +468,83 @@ const appLogs = {
   logUserInApp: async (pageName) => ({ success: true }),
 };
 
+// ========== SALARY ==========
+const salary = {
+  config: {
+    list: async () => {
+      const res = await api.get("/salary/config");
+      return res.data;
+    },
+    get: async (userId) => {
+      const res = await api.get(`/salary/config/${userId}`);
+      return res.data;
+    },
+    create: async (data) => {
+      const res = await api.post("/salary/config", data);
+      return res.data;
+    },
+    update: async (userId, data) => {
+      const res = await api.put(`/salary/config/${userId}`, data);
+      return res.data;
+    },
+  },
+  board: async (month) => {
+    const res = await api.get("/salary/board", {
+      params: { month },
+    });
+    return res.data;
+  },
+  currentMonth: async (month) => {
+    const res = await api.get("/salary/breakdown/me", {
+      params: { month },
+    });
+    return res.data;
+  },
+  breakdown: async (userId, month) => {
+    const url = userId === 'me' ? '/salary/breakdown/me' : `/salary/breakdown/${userId}`;
+    const res = await api.get(url, {
+      params: { month },
+    });
+    return res.data;
+  },
+  payslips: {
+    list: async (filters = {}) => {
+      const res = await api.get("/salary/payslips", {
+        params: filters,
+      });
+      return res.data;
+    },
+    listMine: async () => {
+      const res = await api.get("/salary/payslips/me");
+      return res.data;
+    },
+    get: async (id) => {
+      const res = await api.get(`/salary/payslips/${id}`);
+      return res.data;
+    },
+    generate: async (data) => {
+      const res = await api.post("/salary/payslip/generate", data);
+      return res.data;
+    },
+    generateBulk: async (data) => {
+      const res = await api.post("/salary/payslip/generate-bulk", data);
+      return res.data;
+    },
+    approve: async (id) => {
+      const res = await api.put(`/salary/payslip/${id}/approve`, {});
+      return res.data;
+    },
+    markPaid: async (id, data) => {
+      const res = await api.put(`/salary/payslip/${id}/mark-paid`, data);
+      return res.data;
+    },
+    delete: async (id) => {
+      const res = await api.delete(`/salary/payslips/${id}`);
+      return res.data;
+    },
+  },
+};
+
 // ========== BUILD ENTITIES ==========
 const entities = {};
 for (const name of Object.keys(ENTITY_ROUTES)) {
@@ -483,6 +564,17 @@ export const base44 = {
   shifts,
   leaderboard,
   analytics,
+  salary,
+  appSettings: {
+    get: async () => {
+      const res = await api.get("/app-settings");
+      return res.data;
+    },
+    update: async (data) => {
+      const res = await api.put("/app-settings", data);
+      return res.data;
+    },
+  },
 };
 
 export default api;
